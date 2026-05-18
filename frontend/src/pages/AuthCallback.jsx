@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Box, CircularProgress, Typography } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
+import api from '../services/api';
 
 const AuthCallback = () => {
   const [searchParams] = useSearchParams();
@@ -12,10 +13,9 @@ const AuthCallback = () => {
     const token = searchParams.get('token');
     if (token) {
       login(token);
-      fetch('/api/auth/me')
-        .then((res) => res.json())
-        .then((data) => {
-          setUser(data.data);
+      api.get('/auth/me')
+        .then((res) => {
+          setUser(res.data.data);
           navigate('/');
         })
         .catch(() => navigate('/login'));

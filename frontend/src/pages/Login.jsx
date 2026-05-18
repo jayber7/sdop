@@ -6,7 +6,8 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
 const Login = () => {
   const handleGoogleLogin = () => {
-    window.open(`${API_URL.replace('/api', '')}/auth/google`, '_self');
+    const baseUrl = API_URL.replace(/\/api$/, '');
+    window.open(`${baseUrl}/api/auth/google`, '_self');
   };
 
   return (

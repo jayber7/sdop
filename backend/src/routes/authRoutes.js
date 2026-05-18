@@ -10,16 +10,42 @@ const generateToken = (user) => {
   });
 };
 
+const FRONTEND_URL = (process.env.FRONTEND_URL || 'http://localhost:5174').split(',')[0].trim();
+
 router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
-router.get(
-  '/google/callback',
-  passport.authenticate('google', { session: false }),
-  (req, res) => {
-    const token = generateToken(req.user);
-    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5174'}/auth/callback?token=${token}`);
-  }
-);
+router.get('/google/callback', (req, res, next) => {
+  console.log('=== OAuth Callback Received ===');
+  console.log('Query params:', Object.keys(req.query));
+  console.log('Has code:', !!req.query.code);
+  console.log('Has error:', req.query.error || 'none');
+  
+  passport.authenticate('google', { session: false }, (err, user, info) => {
+    console.log('=== Passport Authenticate Result ===');
+    console.log('Error:', err ? err.message : 'none');
+    console.log('User:', user ? user.email : 'none');
+    console.log('Info:', info ? JSON.stringify(info) : 'none');
+    
+    if (err) {
+      console.error('OAuth error details:', err);
+      return res.redirect(`${FRONTEND_URL}/login?error=oauth_error&msg=${encodeURIComponent(err.message)}`);
+    }
+    if (!user) {
+      console.error('No user returned from OAuth');
+      return res.redirect(`${FRONTEND_URL}/login?error=no_user`);
+    }
+    
+    try {
+      const token = generateToken(user);
+      console.log('Token generated successfully for:', user.email);
+      console.log('Redirecting to:', `${FRONTEND_URL}/auth/callback?token=***`);
+      res.redirect(`${FRONTEND_URL}/auth/callback?token=${token}`);
+    } catch (tokenErr) {
+      console.error('Token generation error:', tokenErr);
+      res.redirect(`${FRONTEND_URL}/login?error=token_error`);
+    }
+  })(req, res, next);
+});
 
 router.get('/me', authMiddleware, (req, res) => {
   res.json({ status: 'success', data: req.usuario });

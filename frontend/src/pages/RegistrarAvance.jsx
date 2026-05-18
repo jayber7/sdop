@@ -2,9 +2,12 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Card, CardContent, Button, TextField, Grid, Chip, Alert, LinearProgress,
-  Dialog, DialogTitle, DialogContent, DialogActions, Stack, IconButton,
+  Stack, IconButton, MenuItem, Divider, Tooltip,
 } from '@mui/material';
-import { PhotoCamera, Upload, Delete, MyLocation, CheckCircle, Warning, Cancel } from '@mui/icons-material';
+import {
+  PhotoCamera, Upload, Delete, MyLocation, CheckCircle, Warning, Cancel,
+  CameraAlt, GpsFixed, AccessTime, Smartphone,
+} from '@mui/icons-material';
 import exifr from 'exifr';
 import api from '../services/api';
 
@@ -20,6 +23,7 @@ const RegistrarAvance = () => {
   const [fotos, setFotos] = useState([]);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
   const [formData, setFormData] = useState({
     avanceFisicoParcial: '', avanceFisicoAcumulado: '', avanceFinancieroParcial: '',
     avanceFinancieroAcumulado: '', hitoDescripcion: '', actividadesRealizadas: '',
@@ -27,6 +31,7 @@ const RegistrarAvance = () => {
   });
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
 
   useEffect(() => {
     if (proyectoId) {
@@ -54,36 +59,70 @@ const RegistrarAvance = () => {
   const handleCapture = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    setUploadError(null);
     processFile(file);
   };
 
   const processFile = async (file) => {
     setUploading(true);
+    setUploadError(null);
     try {
       const url = URL.createObjectURL(file);
       setPreviewUrl(url);
 
+      // Extraer EXIF en el frontend ANTES de subir
       let exifData = null;
-      try { exifData = await exifr.parse(file); } catch (e) { /* no EXIF */ }
+      try {
+        exifData = await exifr.parse(file);
+      } catch (e) {
+        // No hay EXIF, no es error
+      }
 
       const formData = new FormData();
       formData.append('foto', file);
       formData.append('categoria', 'VISTA_GENERAL');
 
+      // GPS del navegador
       if (gps) {
         formData.append('browserGpsLat', gps.lat);
         formData.append('browserGpsLng', gps.lng);
       }
+
+      // Coordenadas del proyecto
       if (proyecto?.coordenadas) {
         formData.append('proyectoCoords', JSON.stringify(proyecto.coordenadas));
+      }
+
+      // ENVIAR EXIF extraído en el frontend como campos adicionales
+      if (exifData) {
+        if (exifData.latitude) formData.append('exifLat', exifData.latitude.toString());
+        if (exifData.longitude) formData.append('exifLng', exifData.longitude.toString());
+        if (exifData.altitude) formData.append('exifAlt', exifData.altitude.toString());
+        if (exifData.DateTimeOriginal) formData.append('exifDate', exifData.DateTimeOriginal.toISOString());
+        if (exifData.Make) formData.append('exifMake', exifData.Make);
+        if (exifData.Model) formData.append('exifModel', exifData.Model);
       }
 
       const res = await api.post('/avances/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
       const fotoData = res.data.data;
 
+      // Si el backend no pudo extraer EXIF (Cloudinary lo eliminó), usar el del frontend
+      if (!fotoData.exif?.tieneGPS && exifData) {
+        fotoData.exif = {
+          latitud: exifData.latitude || null,
+          longitud: exifData.longitude || null,
+          altitud: exifData.altitude || null,
+          fechaCaptura: exifData.DateTimeOriginal || null,
+          dispositivo: exifData.Make || null,
+          modeloCamara: exifData.Model || null,
+          tieneGPS: !!(exifData.latitude && exifData.longitude),
+        };
+      }
+
       setFotos((prev) => [...prev, { ...fotoData, file, preview: url }]);
     } catch (error) {
       console.error('Error uploading:', error);
+      setUploadError(error.response?.data?.message || 'Error al subir la foto');
     } finally {
       setUploading(false);
       setPreviewUrl(null);
@@ -96,6 +135,7 @@ const RegistrarAvance = () => {
 
   const handleSubmit = async () => {
     setSubmitting(true);
+    setSubmitError(null);
     try {
       await api.post('/avances', {
         proyectoId: proyectoId || proyecto?._id,
@@ -113,6 +153,7 @@ const RegistrarAvance = () => {
       setTimeout(() => navigate(`/proyectos/${proyectoId || proyecto?._id}`), 2000);
     } catch (error) {
       console.error('Error:', error);
+      setSubmitError(error.response?.data?.message || 'Error al registrar el avance');
     } finally {
       setSubmitting(false);
     }
@@ -121,6 +162,12 @@ const RegistrarAvance = () => {
   const getDistanciaObra = (foto) => {
     if (!foto.verificacion || !proyecto?.coordenadas) return null;
     return foto.verificacion.distanciaObraMetros;
+  };
+
+  const formatDate = (date) => {
+    if (!date) return 'N/A';
+    const d = new Date(date);
+    return d.toLocaleDateString('es-BO') + ' ' + d.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' });
   };
 
   return (
@@ -172,29 +219,72 @@ const RegistrarAvance = () => {
               </Stack>
 
               {uploading && <LinearProgress sx={{ mb: 2 }} />}
+              {uploadError && <Alert severity="error" sx={{ mb: 2 }}>{uploadError}</Alert>}
 
               {fotos.length > 0 && (
                 <Grid container spacing={2}>
                   {fotos.map((foto, i) => (
-                    <Grid item xs={6} key={i}>
+                    <Grid item xs={12} key={i}>
                       <Card variant="outlined">
                         <img src={foto.preview || foto.url} alt={`Foto ${i + 1}`}
-                          style={{ width: '100%', height: 120, objectFit: 'cover' }} />
-                        <Box sx={{ p: 1 }}>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          style={{ width: '100%', height: 160, objectFit: 'cover' }} />
+                        <Box sx={{ p: 1.5 }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                             <Chip label={foto.verificacion?.estado || 'PENDIENTE'} size="small"
                               color={foto.verificacion?.estado === 'VERIFICADO' ? 'success' : 'warning'} />
                             <IconButton size="small" onClick={() => removeFoto(i)}><Delete fontSize="small" /></IconButton>
                           </Box>
-                          {foto.exif?.tieneGPS && (
-                            <Typography variant="caption" display="block">EXIF GPS: {foto.exif.latitud?.toFixed(4)}, {foto.exif.longitud?.toFixed(4)}</Typography>
+
+                          {/* Metadatos EXIF del frontend */}
+                          {foto.exif && (
+                            <Box sx={{ mb: 1 }}>
+                              {foto.exif.dispositivo && (
+                                <Typography variant="caption" display="block" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                  <Smartphone fontSize="inherit" sx={{ fontSize: 14 }} />
+                                  {foto.exif.dispositivo} {foto.exif.modeloCamara}
+                                </Typography>
+                              )}
+                              {foto.exif.fechaCaptura && (
+                                <Typography variant="caption" display="block" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                  <AccessTime fontSize="inherit" sx={{ fontSize: 14 }} />
+                                  {formatDate(foto.exif.fechaCaptura)}
+                                </Typography>
+                              )}
+                              {foto.exif.tieneGPS && (
+                                <Typography variant="caption" display="block" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                  <GpsFixed fontSize="inherit" sx={{ fontSize: 14 }} />
+                                  EXIF: {foto.exif.latitud?.toFixed(6)}, {foto.exif.longitud?.toFixed(6)}
+                                </Typography>
+                              )}
+                              {!foto.exif.tieneGPS && foto.exif.dispositivo && (
+                                <Typography variant="caption" display="block" color="warning.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                  <Warning fontSize="inherit" sx={{ fontSize: 14 }} />
+                                  Sin GPS en EXIF
+                                </Typography>
+                              )}
+                            </Box>
                           )}
-                          {foto.verificacion?.distanciaObraMetros !== null && (
-                            <Typography variant="caption" display="block">
-                              Distancia: {foto.verificacion.distanciaObraMetros}m
-                              {foto.verificacion.ubicacionValida ? <CheckCircle fontSize="inherit" color="success" /> : <Warning fontSize="inherit" color="warning" />}
+
+                          {/* Verificación geográfica */}
+                          <Divider sx={{ my: 0.5 }} />
+                          <Box sx={{ mt: 0.5 }}>
+                            <Typography variant="caption" display="block" sx={{ fontWeight: 600 }}>
+                              Verificación:
                             </Typography>
-                          )}
+                            {foto.verificacion?.distanciaObraMetros !== null && (
+                              <Typography variant="caption" display="block" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                {foto.verificacion.ubicacionValida
+                                  ? <CheckCircle fontSize="inherit" color="success" />
+                                  : <Warning fontSize="inherit" color="warning" />}
+                                Distancia: {foto.verificacion.distanciaObraMetros}m
+                              </Typography>
+                            )}
+                            {foto.verificacion?.observaciones && (
+                              <Typography variant="caption" display="block" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                                {foto.verificacion.observaciones}
+                              </Typography>
+                            )}
+                          </Box>
                         </Box>
                       </Card>
                     </Grid>
@@ -226,11 +316,12 @@ const RegistrarAvance = () => {
                   value={formData.problemasIdentificados} onChange={(e) => setFormData({ ...formData, problemasIdentificados: e.target.value })} /></Grid>
                 <Grid item xs={12}><TextField select fullWidth size="small" label="Clima" value={formData.clima}
                   onChange={(e) => setFormData({ ...formData, clima: e.target.value })}>
-                  {['SOLEADO', 'NUBLADO', 'LLUVIA', 'GRANIZO', 'NIEBLA'].map((c) => <option key={c} value={c}>{c}</option>)}
+                  {['SOLEADO', 'NUBLADO', 'LLUVIA', 'GRANIZO', 'NIEBLA'].map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}
                 </TextField></Grid>
               </Grid>
 
               {success && <Alert severity="success" sx={{ mt: 2 }}>Avance registrado exitosamente</Alert>}
+              {submitError && <Alert severity="error" sx={{ mt: 2 }}>{submitError}</Alert>}
 
               <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
                 <Button variant="contained" fullWidth onClick={handleSubmit} disabled={submitting || fotos.length === 0}>

@@ -44,7 +44,7 @@ require('./config/passport')(passport);
 require('./config/cloudinary');
 
 // Routes
-app.use('/api', require('./routes/authRoutes'));
+app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/gestion', require('./routes/gestionRoutes'));
 app.use('/api/avances', require('./routes/avanceRoutes'));
 

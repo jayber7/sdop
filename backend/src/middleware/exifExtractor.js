@@ -27,6 +27,20 @@ const extractExifMiddleware = async (req, res, next) => {
       };
     }
 
+    // Fallback: si Cloudinary eliminó el EXIF, usar datos enviados desde el frontend
+    if (!req.exifData && req.body.exifLat && req.body.exifLng) {
+      req.exifData = {
+        latitud: parseFloat(req.body.exifLat),
+        longitud: parseFloat(req.body.exifLng),
+        altitud: req.body.exifAlt ? parseFloat(req.body.exifAlt) : null,
+        fechaCaptura: req.body.exifDate ? new Date(req.body.exifDate) : null,
+        horaCaptura: req.body.exifDate ? new Date(req.body.exifDate).toTimeString().split(' ')[0] : null,
+        dispositivo: req.body.exifMake || null,
+        modeloCamara: req.body.exifModel || null,
+        tieneGPS: true,
+      };
+    }
+
     next();
   } catch (error) {
     console.error('Error extracting EXIF:', error.message);

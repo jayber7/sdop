@@ -17,7 +17,15 @@ const geoVerificationMiddleware = (req, res, next) => {
   try {
     const { browserGpsLat, browserGpsLng, proyectoCoords, radioAceptado = 500 } = req.body;
 
-    if (!browserGpsLat || !browserGpsLng || !proyectoCoords) {
+    // Parsear proyectoCoords si viene como string JSON
+    let coordsParsed;
+    try {
+      coordsParsed = typeof proyectoCoords === 'string' ? JSON.parse(proyectoCoords) : proyectoCoords;
+    } catch (e) {
+      coordsParsed = proyectoCoords;
+    }
+
+    if (!browserGpsLat || !browserGpsLng || !coordsParsed) {
       req.verificacion = {
         ubicacionValida: false,
         fechaValida: true,
@@ -31,7 +39,7 @@ const geoVerificationMiddleware = (req, res, next) => {
     }
 
     const browserGps = { lat: parseFloat(browserGpsLat), lng: parseFloat(browserGpsLng) };
-    const proyecto = { lat: parseFloat(proyectoCoords.lat), lng: parseFloat(proyectoCoords.lng) };
+    const proyecto = { lat: parseFloat(coordsParsed.lat), lng: parseFloat(coordsParsed.lng) };
 
     const distancia = haversineDistance(browserGps, proyecto);
 
@@ -58,6 +66,11 @@ const geoVerificationMiddleware = (req, res, next) => {
     if (exifGps && !coinciden) {
       estado = 'SOSPECHOSO';
       observaciones += ` | EXIF y GPS navegador no coinciden (${Math.round(distanciaExifBrowser)}m)`;
+    }
+
+    if (!exifGps && !browserGpsLat) {
+      estado = 'SOSPECHOSO';
+      observaciones = 'Sin datos de geolocalización en la foto';
     }
 
     req.verificacion = {

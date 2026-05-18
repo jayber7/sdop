@@ -11,24 +11,44 @@ module.exports = function (passport) {
       },
       async (accessToken, refreshToken, profile, done) => {
         try {
-          let usuario = await Usuario.findOne({ email: profile.emails[0].value });
+          console.log('=== Google Profile Received ===');
+          console.log('Profile ID:', profile.id);
+          console.log('Display Name:', profile.displayName);
+          console.log('Emails:', profile.emails ? profile.emails.map(e => e.value) : 'none');
+          console.log('Photos:', profile.photos ? profile.photos[0]?.value : 'none');
+          
+          const email = profile.emails && profile.emails[0] ? profile.emails[0].value : null;
+
+          if (!email) {
+            console.error('No email found in Google profile');
+            return done(new Error('No email found in Google profile'), null);
+          }
+
+          console.log('Looking for user with email:', email);
+          let usuario = await Usuario.findOne({ email });
 
           if (!usuario) {
+            console.log('Creating new user:', email);
             usuario = await Usuario.create({
               nombre: profile.displayName,
-              email: profile.emails[0].value,
+              email,
               googleId: profile.id,
               rol: 'VISOR',
               activo: true,
             });
+            console.log('User created successfully:', usuario._id);
           } else {
+            console.log('Existing user found:', usuario._id);
             usuario.googleId = profile.id;
-            usuario.isProfileComplete = true;
+            usuario.activo = true;
             await usuario.save();
+            console.log('User updated successfully');
           }
 
           done(null, usuario);
         } catch (error) {
+          console.error('Google OAuth callback error:', error.message);
+          console.error('Stack:', error.stack);
           done(error, null);
         }
       }
