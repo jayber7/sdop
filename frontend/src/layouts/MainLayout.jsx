@@ -7,9 +7,10 @@ import {
 import {
   Menu as MenuIcon, Dashboard as DashboardIcon, Engineering as ProjectsIcon,
   Assignment as AvancesIcon, Business as EmpresasIcon, People as PersonasIcon,
-  AccountBalance as HitosIcon, Logout as LogoutIcon,
+  AccountBalance as HitosIcon, Logout as LogoutIcon, Feedback as FeedbackIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
+import FeedbackButton from '../components/FeedbackButton';
 
 const drawerWidth = 260;
 
@@ -58,6 +59,21 @@ const MainLayout = () => {
           </ListItem>
         ))}
       </List>
+      <Divider />
+      <List>
+        <ListItem
+          button
+          onClick={() => { navigate('/feedback'); setMobileOpen(false); }}
+          sx={{
+            bgcolor: location.pathname === '/feedback' ? 'warning.light' : 'transparent',
+            color: location.pathname === '/feedback' ? 'white' : 'inherit',
+            '&:hover': { bgcolor: 'warning.light', color: 'white' },
+          }}
+        >
+          <ListItemIcon sx={{ color: 'inherit' }}><FeedbackIcon /></ListItemIcon>
+          <ListItemText primary="Feedback" />
+        </ListItem>
+      </List>
     </Box>
   );
 
@@ -78,6 +94,9 @@ const MainLayout = () => {
             <MenuItem disabled>{user?.nombre}</MenuItem>
             <MenuItem disabled sx={{ opacity: 0.7 }}>{user?.email}</MenuItem>
             <Divider />
+            <MenuItem onClick={() => { handleMenuClose(); navigate('/feedback'); }}>
+              <FeedbackIcon sx={{ mr: 1 }} fontSize="small" /> Feedback
+            </MenuItem>
             <MenuItem onClick={handleLogout}><LogoutIcon sx={{ mr: 1 }} fontSize="small" /> Cerrar Sesión</MenuItem>
           </Menu>
         </Toolbar>
@@ -94,6 +113,7 @@ const MainLayout = () => {
       <Box component="main" sx={{ flexGrow: 1, p: 3, width: { sm: `calc(100% - ${drawerWidth}px)` }, mt: 8 }}>
         <Outlet />
       </Box>
+      <FeedbackButton />
     </Box>
   );
 };

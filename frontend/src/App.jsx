@@ -12,6 +12,7 @@ import RegistrarAvance from './pages/RegistrarAvance';
 import Empresas from './pages/Empresas';
 import PersonasTecnicas from './pages/PersonasTecnicas';
 import HitosPresupuestarios from './pages/HitosPresupuestarios';
+import FeedbackList from './pages/FeedbackList';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -41,6 +42,7 @@ const App = () => {
         <Route path="empresas" element={<Empresas />} />
         <Route path="personas-tecnicas" element={<PersonasTecnicas />} />
         <Route path="hitos" element={<HitosPresupuestarios />} />
+        <Route path="feedback" element={<FeedbackList />} />
       </Route>
     </Routes>
   );

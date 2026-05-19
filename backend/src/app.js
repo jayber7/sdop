@@ -50,6 +50,7 @@ require('./config/cloudinary');
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/gestion', require('./routes/gestionRoutes'));
 app.use('/api/avances', require('./routes/avanceRoutes'));
+app.use('/api/feedback', require('./routes/feedbackRoutes'));
 
 // Health check
 app.get('/api', (req, res) => {

@@ -11,6 +11,7 @@ const Proyecto = require('./models/Proyecto');
 const Empresa = require('./models/Empresa');
 const PersonaTecnica = require('./models/PersonaTecnica');
 const HitoPresupuestario = require('./models/HitoPresupuestario');
+const Feedback = require('./models/Feedback');
 
 // Datos de empresas constructoras (extraídas/inferidas de los informes)
 const empresas = [
@@ -768,12 +769,81 @@ async function seedDatabase() {
     await HitoPresupuestario.insertMany(hitos);
     console.log(`${hitos.length} hitos presupuestarios creados`);
 
+    // Sembrar feedbacks de prueba
+    console.log('\nSembrando feedbacks de prueba...');
+    const feedbacks = [
+      {
+        tipo: 'BUG',
+        titulo: 'No se pueden subir fotos desde galería',
+        descripcion: 'Cuando intento adjuntar una foto desde la galería del celular, la pantalla se queda cargando y no sube la imagen. Solo funciona con la cámara.',
+        pagina: '/avances/6a0b67c2d48b801146048209/nuevo',
+        prioridad: 'ALTA',
+        estado: 'ABIERTO',
+      },
+      {
+        tipo: 'MEJORA',
+        titulo: 'Agregar filtro por fecha en avances',
+        descripcion: 'Sería útil poder filtrar los avances por rango de fechas para ver los reportes de un mes específico.',
+        pagina: '/avances',
+        prioridad: 'MEDIA',
+        estado: 'EN_PROGRESO',
+        respuesta: 'Buena sugerencia, lo agregaremos en la próxima actualización.',
+        fechaRespuesta: new Date(),
+      },
+      {
+        tipo: 'NUEVA_FUNCIONALIDAD',
+        titulo: 'Exportar reportes a PDF',
+        descripcion: 'Necesitamos poder exportar los reportes de avance a PDF para imprimir y presentar a las autoridades.',
+        pagina: '/proyectos/6a0b67c2d48b801146048209',
+        prioridad: 'ALTA',
+        estado: 'ABIERTO',
+      },
+      {
+        tipo: 'BUG',
+        titulo: 'El dashboard no muestra datos correctamente',
+        descripcion: 'Al entrar al dashboard, las estadísticas aparecen en 0 por unos segundos antes de cargar. Debería mostrar un spinner de carga.',
+        pagina: '/',
+        prioridad: 'BAJA',
+        estado: 'RESUELTO',
+        respuesta: 'Corregido en la última actualización.',
+        fechaRespuesta: new Date(),
+      },
+      {
+        tipo: 'MEJORA',
+        titulo: 'Mejorar la navegación en móviles',
+        descripcion: 'El menú lateral es difícil de usar en celulares. Sería mejor un menú inferior con iconos como las apps móviles.',
+        pagina: '/proyectos',
+        prioridad: 'MEDIA',
+        estado: 'ABIERTO',
+      },
+      {
+        tipo: 'NUEVA_FUNCIONALIDAD',
+        titulo: 'Notificaciones por email',
+        descripcion: 'Quisiera recibir un email cuando un avance sea aprobado o observado, para no tener que estar revisando constantemente.',
+        pagina: '/avances',
+        prioridad: 'MEDIA',
+        estado: 'ABIERTO',
+      },
+      {
+        tipo: 'OTRO',
+        titulo: 'Falta documentación del sistema',
+        descripcion: 'No hay un manual de usuario para los inspectores nuevos. Sería bueno tener una guía rápida.',
+        pagina: '/dashboard',
+        prioridad: 'BAJA',
+        estado: 'ABIERTO',
+      },
+    ];
+
+    await Feedback.insertMany(feedbacks);
+    console.log(`${feedbacks.length} feedbacks sembrados`);
+
     // Resumen
     console.log('\n===== RESUMEN DE SIEMBRA DE DATOS =====');
     console.log(`Empresas: ${empresasInsertadas.length}`);
     console.log(`Personas Técnicas: ${personasInsertadas.length}`);
     console.log(`Proyectos: ${proyectosInsertados.length}`);
     console.log(`Hitos Presupuestarios: ${hitos.length}`);
+    console.log(`Feedbacks: ${feedbacks.length}`);
     
     console.log('\nDistribución de proyectos por tipo:');
     const tipos = {};
