@@ -2,12 +2,17 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const Usuario = require('../models/Usuario');
 
 module.exports = function (passport) {
+  // Construir callbackURL con HTTPS para producción
+  const backendUrl = process.env.NODE_ENV === 'production'
+    ? 'https://sdop.onrender.com'
+    : 'http://localhost:5001';
+
   passport.use(
     new GoogleStrategy(
       {
         clientID: process.env.GOOGLE_CLIENT_ID,
         clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        callbackURL: '/api/auth/google/callback',
+        callbackURL: `${backendUrl}/api/auth/google/callback`,
       },
       async (accessToken, refreshToken, profile, done) => {
         try {

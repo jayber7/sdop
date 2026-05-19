@@ -8,6 +8,9 @@ dotenv.config();
 
 const app = express();
 
+// Trust proxy headers (Render uses HTTPS externally, HTTP internally)
+app.set('trust proxy', 1);
+
 // CORS
 const allowedOrigins = process.env.FRONTEND_URL
   ? process.env.FRONTEND_URL.split(',')
