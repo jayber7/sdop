@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Typography, Card, CardContent, Grid, Chip, LinearProgress, Button, TextField, MenuItem, InputAdornment } from '@mui/material';
-import { Search, Add, Visibility } from '@mui/icons-material';
+import { Search, Add, Visibility, Edit } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 
@@ -85,6 +85,7 @@ const Proyectos = () => {
                     </Box>
                     <Box sx={{ display: 'flex', gap: 1 }}>
                       <Chip label={p.estado} size="small" color={estadoColors[p.estado] || 'default'} />
+                      <Button size="small" startIcon={<Edit />} onClick={() => navigate(`/proyectos/${p._id}/editar`)}>Editar</Button>
                       <Button size="small" startIcon={<Visibility />} onClick={() => navigate(`/proyectos/${p._id}`)}>Ver</Button>
                     </Box>
                   </Box>

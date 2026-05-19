@@ -15,7 +15,7 @@ Sistema web para la administración y control de proyectos de obras públicas de
 - **HTTP**: Axios con interceptor JWT
 - **Autenticación**: Google OAuth 2.0
 - **Geolocalización**: navigator.geolocation API
-- **EXIF**: exifr (extracción de metadatos de fotos)
+- **EXIF**: exifr (extracción de metadatos de fotos en frontend)
 - **Mapas**: React Leaflet (pendiente de implementar)
 - **Gráficos**: Recharts (pendiente de implementar)
 
@@ -24,8 +24,8 @@ Sistema web para la administración y control de proyectos de obras públicas de
 - **Base de datos**: MongoDB Atlas (Mongoose 8)
 - **Autenticación**: Passport.js (Google OAuth2), JWT, express-session
 - **Archivos**: Cloudinary + Multer (imágenes)
-- **EXIF**: exifr (extracción de metadatos en servidor)
-- **Geoverificación**: haversine-distance (cálculo de distancia GPS)
+- **EXIF**: exifr (extracción en servidor + fallback desde frontend)
+- **Geoverificación**: haversine (implementación manual, sin librería externa)
 
 ## Estructura del Proyecto
 
@@ -34,11 +34,11 @@ SDOP/
 ├── backend/
 │   ├── src/
 │   │   ├── server.js              # Entry point (puerto 5001)
-│   │   ├── app.js                 # Configuración Express (CORS, middleware, rutas)
-│   │   ├── config/                # DB, Passport, Cloudinary
-│   │   ├── models/                # 7 modelos Mongoose
-│   │   ├── routes/                # 3 archivos de rutas
-│   │   ├── controllers/           # Handlers de rutas
+│   │   ├── app.js                 # Configuración Express (CORS, middleware, rutas, trust proxy)
+│   │   ├── config/                # DB (con reconnect), Passport, Cloudinary
+│   │   ├── models/                # 8 modelos Mongoose (+ Feedback)
+│   │   ├── routes/                # 4 archivos de rutas (+ feedbackRoutes)
+│   │   ├── controllers/           # Handlers de rutas (pendiente)
 │   │   └── middleware/            # auth, exifExtractor, geoVerification
 │   ├── index.js                   # Entry point para Render
 │   └── render.yaml                # Config de despliegue en Render
@@ -50,8 +50,10 @@ SDOP/
 │   │   ├── theme.js               # Tema MUI personalizado (azul + ámbar)
 │   │   ├── services/api.js        # Axios instance con interceptor JWT
 │   │   ├── contexts/AuthContext.jsx  # Estado de autenticación
-│   │   ├── layouts/MainLayout.jsx    # Layout principal (AppBar + Sidebar + Content)
-│   │   └── pages/                 # 10 páginas
+│   │   ├── layouts/MainLayout.jsx    # Layout principal (AppBar + Sidebar + Content + FeedbackButton)
+│   │   ├── components/            # Componentes reutilizables
+│   │   │   └── FeedbackButton.jsx    # Botón flotante de feedback
+│   │   └── pages/                 # 13 páginas
 │   └── vercel.json                # Config de despliegue en Vercel
 │
 └── README.md
@@ -68,6 +70,7 @@ SDOP/
 | `HitoPresupuestario` | Hitos de pago por avance | proyectoId, avanceFisicoMinimo, montoAsociado, estado |
 | `Desembolso` | Registro de pagos | proyectoId, hitoId, monto, estado, comprobantePago |
 | `Usuario` | Usuarios del sistema | nombre, email, password, googleId, rol (ADMIN/SUPERVISOR/INSPECTOR/FISCAL/VISOR) |
+| `Feedback` | Retroalimentación de usuarios | tipo, titulo, descripcion, pagina, prioridad, estado, usuarioId, respuesta |
 
 ## Endpoints de la API
 
@@ -115,15 +118,52 @@ Base URL: `http://localhost:5001/api`
 | PUT | `/api/avances/:id/observar` | Observar avance (supervisor) |
 | GET | `/api/avances/stats` | Estadísticas de avances |
 
+### Feedback (requiere JWT)
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| GET | `/api/feedback` | Listar feedbacks (con filtros) |
+| GET | `/api/feedback/stats` | Estadísticas de feedback |
+| GET | `/api/feedback/:id` | Feedback por ID |
+| POST | `/api/feedback` | Crear feedback (cualquier usuario) |
+| PUT | `/api/feedback/:id` | Responder/cambiar estado (admin) |
+
+## Páginas del Frontend
+
+| Página | Ruta | Descripción | Estado |
+|--------|------|-------------|--------|
+| Login | `/login` | Autenticación Google OAuth | ✅ Completo |
+| Dashboard | `/` | Estadísticas, proyectos recientes, avances recientes | ✅ Completo |
+| Proyectos | `/proyectos` | Lista con filtros | ✅ Listar |
+| ProyectoDetalle | `/proyectos/:id` | Detalle completo del proyecto | ✅ Completo |
+| Avances | `/avances` | Lista con filtros por proyecto/estado | ✅ Listar |
+| AvanceDetalle | `/avances/:id` | Detalle con fotos, EXIF, aprobar/observar | ✅ Completo |
+| RegistrarAvance | `/avances/nuevo`, `/avances/:proyectoId/nuevo` | Formulario + captura foto + verificación GPS | ✅ Completo |
+| Empresas | `/empresas` | Lista + crear | ⚠️ Falta editar/eliminar |
+| Personas Técnicas | `/personas-tecnicas` | Lista + crear | ⚠️ Falta editar/eliminar |
+| Hitos | `/hitos` | Lista + crear | ⚠️ Falta editar/eliminar |
+| Feedback | `/feedback` | Panel admin para ver/responder feedbacks | ✅ Completo |
+
+## Componentes
+
+| Componente | Descripción |
+|------------|-------------|
+| `FeedbackButton` | Botón flotante (FAB) que abre modal de 3 pasos: tipo → formulario → confirmación |
+
 ## Flujo de Registro de Avance con Evidencia Georeferencial
 
 ### Captura Híbrida
 1. **Tomar Foto**: Abre cámara trasera del celular (`capture="environment"`)
 2. **Adjuntar Foto**: Selector de archivos desde galería del dispositivo
 
+### Extracción EXIF en Frontend
+- `exifr.parse(file)` se ejecuta ANTES de subir la foto
+- Los metadatos extraídos se envían como campos adicionales en FormData (`exifLat`, `exifLng`, `exifMake`, `exifModel`, etc.)
+- Esto compensa que Cloudinary elimina el EXIF durante el procesamiento de imágenes
+
 ### Verificación Automática
 ```
-Foto subida → Backend extrae EXIF (si existe)
+Foto subida → Backend intenta extraer EXIF del archivo
+            → Si falla (Cloudinary lo eliminó), usa EXIF enviado desde frontend (fallback)
             → Captura GPS del navegador (Geolocation API)
             → Calcula distancia foto vs obra (haversine)
             → Verificación cruzada:
@@ -135,20 +175,20 @@ Foto subida → Backend extrae EXIF (si existe)
 ```
 
 ### Middleware de Verificación
-- `exifExtractor.js`: Extrae metadatos EXIF de la imagen subida
-- `geoVerification.js`: Calcula distancias haversine y determina estado de verificación
+- `exifExtractor.js`: Extrae EXIF del archivo subido. Si no puede, usa datos enviados desde frontend como fallback
+- `geoVerification.js`: Calcula distancias haversine y determina estado de verificación. Parsea `proyectoCoords` como JSON string
 
 ## Despliegue
 
 ### Arquitectura
-- **Frontend**: Vercel (React SPA estático)
-- **Backend**: Render o Koyeb (Node.js Web Service)
+- **Frontend**: Vercel (React SPA estático) → `https://sdop-azure.vercel.app`
+- **Backend**: Render (Node.js Web Service) → `https://sdop.onrender.com`
 - **Base de datos**: MongoDB Atlas (misma cluster que CONALJUVE, DB separada `sdop_gestion`)
 - **Archivos**: Cloudinary (mismo account, carpetas `sdop/`)
 
 ### Variables de Entorno
 
-**Backend:**
+**Backend (Render):**
 ```
 NODE_ENV=production
 PORT=5001
@@ -160,13 +200,23 @@ GOOGLE_CLIENT_SECRET=...
 CLOUDINARY_CLOUD_NAME=...
 CLOUDINARY_API_KEY=...
 CLOUDINARY_API_SECRET=...
-FRONTEND_URL=https://sdop.vercel.app
+FRONTEND_URL=https://sdop-azure.vercel.app
 ```
 
-**Frontend:**
+**Frontend (Vercel):**
 ```
-VITE_API_URL=https://sdop-backend.onrender.com/api
+VITE_API_URL=https://sdop.onrender.com/api
 ```
+
+### Configuración de OAuth Google
+- Google Cloud Console → APIs & Services → Credentials
+- Client ID existente del proyecto `conaljuve`
+- Authorized redirect URI: `https://sdop.onrender.com/api/auth/google/callback`
+
+### Configuración de Build
+- `backend/.npmrc`: `legacy-peer-deps=true` (resuelve conflicto cloudinary v2 vs multer-storage-cloudinary)
+- `backend/src/config/db.js`: Reconnect automático en lugar de `process.exit(1)`
+- `backend/src/app.js`: `app.set('trust proxy', 1)` para HTTPS detrás de proxy de Render
 
 ## Comandos de Desarrollo
 
@@ -191,9 +241,9 @@ npm run preview      # Preview del build
 
 | Rol | Permisos |
 |-----|----------|
-| `ADMIN` | Acceso total: CRUD proyectos, empresas, personas, hitos, desembolsos, aprobar avances |
+| `ADMIN` | Acceso total: CRUD proyectos, empresas, personas, hitos, desembolsos, aprobar avances, gestionar feedback |
 | `SUPERVISOR` | Ver proyectos, aprobar/observar avances |
-| `INSPECTOR` | Ver proyectos asignados, registrar avances |
+| `INSPECTOR` | Ver proyectos asignados, registrar avances, enviar feedback |
 | `FISCAL` | Ver proyectos, avances y desembolsos |
 | `VISOR` | Solo lectura de proyectos y avances |
 
@@ -221,16 +271,35 @@ npm run preview      # Preview del build
 - `SOSPECHOSO` - GPS fuera de radio, EXIF no coincide con browser GPS, o foto antigua
 - `RECHAZADO` - Verificación fallida deliberadamente
 
+## Estados de Feedback
+
+`ABIERTO` → `EN_PROGRESO` → `RESUELTO` (o `RECHAZADO`/`CERRADO`)
+
+## Tipos de Feedback
+
+- `BUG` - Reporte de error
+- `MEJORA` - Sugerencia de mejora
+- `NUEVA_FUNCIONALIDAD` - Solicitud de nueva funcionalidad
+- `OTRO` - Otro tipo de feedback
+
 ## Notas Importantes
 
 1. **Independencia de CONALJUVE**: Este proyecto es completamente independiente. No comparte código con CONALJUVE pero reutiliza los mismos servicios (MongoDB Atlas, Cloudinary, Google OAuth) con configuraciones separadas.
 
-2. **Captura híbrida**: El componente `RegistrarAvance` permite tanto tomar foto en vivo como adjuntar desde galería. En ambos casos se captura el GPS del navegador. Si la foto tiene EXIF, se hace verificación cruzada.
+2. **Captura híbrida**: El componente `RegistrarAvance` permite tanto tomar foto en vivo como adjuntar desde galería. En ambos casos se captura el GPS del navegador. El EXIF se extrae en el frontend y se envía como fallback al backend.
 
 3. **Geolocalización**: Requiere HTTPS en producción para que `navigator.geolocation` funcione correctamente.
 
-4. **Cloudinary**: Las fotos se guardan en la carpeta `sdop/avances`. Documentos en `sdop/documentos`.
+4. **Cloudinary**: Las fotos se guardan en la carpeta `sdop/avances`. Cloudinary elimina metadatos EXIF, por eso se extraen en el frontend antes de subir.
 
 5. **MongoDB**: Usa la misma cluster que CONALJUVE pero con base de datos separada `sdop_gestion`.
 
-6. **LLM pendiente**: La verificación con LLM de imágenes está planificada para una fase posterior. Actualmente la verificación es puramente basada en GPS + EXIF.
+6. **Orden de rutas**: Las rutas específicas (`/stats`) deben ir ANTES que las dinámicas (`/:id`) en Express.
+
+7. **Trust proxy**: `app.set('trust proxy', 1)` es necesario en Render para que Express detecte HTTPS correctamente y construya las URLs de OAuth.
+
+8. **Reconexión MongoDB**: El backend no se cierra si falla la conexión a MongoDB; reintenta cada 5 segundos.
+
+9. **Siembra de datos**: `backend/src/seed.js` crea 28 proyectos, 5 empresas, 6 personas técnicas, 108 hitos y 7 feedbacks de prueba basados en informes reales de la Gobernación de Oruro.
+
+10. **Simulación de avances**: `backend/src/simulateAvance.js` genera imágenes con EXIF GPS inyectado para probar los 3 escenarios de verificación (VERIFICADO, SOSPECHOSO, SIN GPS).

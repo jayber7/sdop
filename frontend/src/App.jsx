@@ -7,6 +7,7 @@ import AuthCallback from './pages/AuthCallback';
 import Dashboard from './pages/Dashboard';
 import Proyectos from './pages/Proyectos';
 import ProyectoDetalle from './pages/ProyectoDetalle';
+import ProyectoForm from './pages/ProyectoForm';
 import Avances from './pages/Avances';
 import AvanceDetalle from './pages/AvanceDetalle';
 import RegistrarAvance from './pages/RegistrarAvance';
@@ -36,7 +37,9 @@ const App = () => {
       >
         <Route index element={<Dashboard />} />
         <Route path="proyectos" element={<Proyectos />} />
+        <Route path="proyectos/nuevo" element={<ProyectoForm />} />
         <Route path="proyectos/:id" element={<ProyectoDetalle />} />
+        <Route path="proyectos/:id/editar" element={<ProyectoForm />} />
         <Route path="avances" element={<Avances />} />
         <Route path="avances/:id" element={<AvanceDetalle />} />
         <Route path="avances/nuevo" element={<RegistrarAvance />} />

@@ -106,6 +106,16 @@ router.put('/empresas/:id', authMiddleware, async (req, res) => {
   }
 });
 
+router.delete('/empresas/:id', authMiddleware, async (req, res) => {
+  try {
+    const empresa = await Empresa.findByIdAndDelete(req.params.id);
+    if (!empresa) return res.status(404).json({ status: 'error', message: 'Empresa no encontrada' });
+    res.json({ status: 'success', message: 'Empresa eliminada' });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
 // PERSONAS TECNICAS
 router.get('/personas-tecnicas', authMiddleware, async (req, res) => {
   try {
@@ -138,6 +148,16 @@ router.put('/personas-tecnicas/:id', authMiddleware, async (req, res) => {
   }
 });
 
+router.delete('/personas-tecnicas/:id', authMiddleware, async (req, res) => {
+  try {
+    const persona = await PersonaTecnica.findByIdAndDelete(req.params.id);
+    if (!persona) return res.status(404).json({ status: 'error', message: 'Persona no encontrada' });
+    res.json({ status: 'success', message: 'Persona técnica eliminada' });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
 // HITOS PRESUPUESTARIOS
 router.get('/hitos', authMiddleware, async (req, res) => {
   try {
@@ -167,6 +187,16 @@ router.put('/hitos/:id', authMiddleware, async (req, res) => {
     res.json({ status: 'success', data: hito });
   } catch (error) {
     res.status(400).json({ status: 'error', message: error.message });
+  }
+});
+
+router.delete('/hitos/:id', authMiddleware, async (req, res) => {
+  try {
+    const hito = await HitoPresupuestario.findByIdAndDelete(req.params.id);
+    if (!hito) return res.status(404).json({ status: 'error', message: 'Hito no encontrado' });
+    res.json({ status: 'success', message: 'Hito eliminado' });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
   }
 });
 
