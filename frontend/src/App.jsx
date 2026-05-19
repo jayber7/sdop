@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import Proyectos from './pages/Proyectos';
 import ProyectoDetalle from './pages/ProyectoDetalle';
 import Avances from './pages/Avances';
+import AvanceDetalle from './pages/AvanceDetalle';
 import RegistrarAvance from './pages/RegistrarAvance';
 import Empresas from './pages/Empresas';
 import PersonasTecnicas from './pages/PersonasTecnicas';
@@ -37,6 +38,7 @@ const App = () => {
         <Route path="proyectos" element={<Proyectos />} />
         <Route path="proyectos/:id" element={<ProyectoDetalle />} />
         <Route path="avances" element={<Avances />} />
+        <Route path="avances/:id" element={<AvanceDetalle />} />
         <Route path="avances/nuevo" element={<RegistrarAvance />} />
         <Route path="avances/:proyectoId/nuevo" element={<RegistrarAvance />} />
         <Route path="empresas" element={<Empresas />} />
