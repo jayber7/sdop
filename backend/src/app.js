@@ -1,8 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
-const session = require('express-session');
-const passport = require('passport');
 
 dotenv.config();
 
@@ -30,24 +28,13 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Session
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'sdop-secret-key',
-  resave: false,
-  saveUninitialized: false,
-  cookie: { secure: process.env.NODE_ENV === 'production' },
-}));
-
-// Passport
-app.use(passport.initialize());
-app.use(passport.session());
-
 // Config
-require('./config/passport')(passport);
 require('./config/cloudinary');
 
 // Routes
 app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/gestion/usuarios', require('./routes/usuarioRoutes'));
+app.use('/api/unidades', require('./routes/unidadRoutes'));
 app.use('/api/gestion', require('./routes/gestionRoutes'));
 app.use('/api/avances', require('./routes/avanceRoutes'));
 app.use('/api/feedback', require('./routes/feedbackRoutes'));

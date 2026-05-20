@@ -19,6 +19,7 @@ const personaTecnicaSchema = new mongoose.Schema({
   telefono: String,
   email: String,
   proyectosAsignados: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Proyecto' }],
+  unidadAsignada: { type: mongoose.Schema.Types.ObjectId, ref: 'UnidadOrganizativa' },
 }, { timestamps: true });
 
 module.exports = mongoose.model('PersonaTecnica', personaTecnicaSchema);

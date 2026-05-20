@@ -59,6 +59,7 @@ const proyectoSchema = new mongoose.Schema({
     otros: [{ url: String, descripcion: String }],
   },
   observaciones: String,
+  unidadResponsable: { type: mongoose.Schema.Types.ObjectId, ref: 'UnidadOrganizativa' },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Proyecto', proyectoSchema);

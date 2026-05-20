@@ -28,9 +28,13 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('sdop_token', token);
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
     localStorage.removeItem('sdop_token');
-    localStorage.removeItem('sdop_user');
     setUser(null);
   };
 

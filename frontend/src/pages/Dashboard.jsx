@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import {
   Grid, Card, CardContent, Typography, Box, LinearProgress, Chip,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
@@ -52,6 +53,7 @@ const ProgressBar = ({ label, value, max, color = 'primary' }) => (
 );
 
 const Dashboard = () => {
+  const { selectedUnidad } = useOutletContext() || {};
   const navigate = useNavigate();
   const [stats, setStats] = useState({
     proyectos: 0, enEjecucion: 0, empresas: 0, avances: 0,
@@ -67,8 +69,10 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        const params = { limit: 100 };
+        if (selectedUnidad) params.unidadResponsable = selectedUnidad;
         const [proyectosRes, empresasRes, avancesStatsRes, avancesRes] = await Promise.all([
-          api.get('/gestion/proyectos?limit=100'),
+          api.get('/gestion/proyectos', { params }),
           api.get('/gestion/empresas'),
           api.get('/avances/stats'),
           api.get('/avances?limit=10'),
@@ -77,18 +81,15 @@ const Dashboard = () => {
         const proyectos = proyectosRes.data.data;
         setProyectos(proyectos.slice(0, 5));
 
-        // Calcular stats
         const presupuestoTotal = proyectos.reduce((s, p) => s + (p.presupuestoTotal || 0), 0);
         const avancePromedio = proyectos.length
           ? Math.round(proyectos.reduce((s, p) => s + (p.avanceFisico || 0), 0) / proyectos.length)
           : 0;
 
-        // Proyectos por tipo
         const tipoCount = {};
         proyectos.forEach(p => { tipoCount[p.tipo] = (tipoCount[p.tipo] || 0) + 1; });
         setPorTipo(tipoCount);
 
-        // Avances sospechosos
         const avancesData = avancesRes.data.data || [];
         const sospechosos = avancesData.filter(a =>
           a.fotos?.some(f => f.verificacion?.estado === 'SOSPECHOSO')
@@ -115,7 +116,7 @@ const Dashboard = () => {
       }
     };
     fetchData();
-  }, []);
+  }, [selectedUnidad]);
 
   const formatPresupuesto = (val) => {
     if (val >= 1000000) return `Bs ${(val / 1000000).toFixed(1)}M`;
@@ -138,8 +139,8 @@ const Dashboard = () => {
 
   const getTipoLabel = (tipo) => {
     const labels = {
-      CAMINO: '🛣️ Camino',
-      PUENTE: '🌉 Puente',
+      CAMINO: '️ Camino',
+      PUENTE: ' Puente',
       ELECTRIFICACION: '⚡ Electrificación',
       AGUA_POTABLE: '💧 Agua Potable',
       SANEAMIENTO: '🚿 Saneamiento',
@@ -176,7 +177,6 @@ const Dashboard = () => {
         </Tooltip>
       </Box>
 
-      {/* Stats principales */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
@@ -217,9 +217,7 @@ const Dashboard = () => {
         </Grid>
       </Grid>
 
-      {/* Distribución y avances recientes */}
       <Grid container spacing={3}>
-        {/* Proyectos por tipo */}
         <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
@@ -241,7 +239,6 @@ const Dashboard = () => {
           </Card>
         </Grid>
 
-        {/* Resumen de avances */}
         <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
@@ -288,7 +285,6 @@ const Dashboard = () => {
           </Card>
         </Grid>
 
-        {/* Proyectos recientes */}
         <Grid item xs={12}>
           <Card>
             <CardContent>
@@ -316,12 +312,20 @@ const Dashboard = () => {
                             <Typography variant="subtitle1" sx={{ fontWeight: 600, fontSize: '0.9rem' }} noWrap>
                               {p.nombre}
                             </Typography>
-                            <Chip
-                              label={p.estado}
-                              size="small"
-                              color={getEstadoColor(p.estado)}
-                              sx={{ ml: 1, flexShrink: 0 }}
-                            />
+                            <Box sx={{ display: 'flex', gap: 0.5, flexShrink: 0 }}>
+                              {p.unidadResponsable && (
+                                <Chip
+                                  label={p.unidadResponsable.codigo}
+                                  size="small"
+                                  sx={{ bgcolor: `${p.unidadResponsable.color}22`, color: p.unidadResponsable.color, fontWeight: 700 }}
+                                />
+                              )}
+                              <Chip
+                                label={p.estado}
+                                size="small"
+                                color={getEstadoColor(p.estado)}
+                              />
+                            </Box>
                           </Box>
                           <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontSize: '0.8rem' }}>
                             {p.municipio || 'Sin municipio'} - {formatPresupuesto(p.presupuestoTotal)}
@@ -357,7 +361,6 @@ const Dashboard = () => {
           </Card>
         </Grid>
 
-        {/* Avances recientes con verificación */}
         <Grid item xs={12}>
           <Card>
             <CardContent>

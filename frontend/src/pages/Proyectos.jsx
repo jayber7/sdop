@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import { Box, Typography, Card, CardContent, Grid, Chip, LinearProgress, Button, TextField, MenuItem, InputAdornment } from '@mui/material';
 import { Search, Add, Visibility, Edit } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
@@ -15,10 +16,30 @@ const estadoColors = {
 };
 
 const Proyectos = () => {
+  const { selectedUnidad } = useOutletContext() || {};
   const [proyectos, setProyectos] = useState([]);
-  const [filter, setFilter] = useState({ estado: '', tipo: '', search: '' });
+  const [unidades, setUnidades] = useState([]);
+  const [filter, setFilter] = useState({ estado: '', tipo: '', unidadResponsable: '', search: '' });
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [proyectosRes, unidadesRes] = await Promise.all([
+          api.get('/gestion/proyectos', { params: { limit: 100 } }),
+          api.get('/unidades'),
+        ]);
+        setProyectos(proyectosRes.data.data);
+        setUnidades(unidadesRes.data.data || []);
+      } catch (error) {
+        console.error('Error:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   useEffect(() => {
     const fetchProyectos = async () => {
@@ -26,16 +47,16 @@ const Proyectos = () => {
         const params = { limit: 100 };
         if (filter.estado) params.estado = filter.estado;
         if (filter.tipo) params.tipo = filter.tipo;
+        if (filter.unidadResponsable) params.unidadResponsable = filter.unidadResponsable;
+        else if (selectedUnidad) params.unidadResponsable = selectedUnidad;
         const res = await api.get('/gestion/proyectos', { params });
         setProyectos(res.data.data);
       } catch (error) {
         console.error('Error:', error);
-      } finally {
-        setLoading(false);
       }
     };
     fetchProyectos();
-  }, [filter.estado, filter.tipo]);
+  }, [filter.estado, filter.tipo, filter.unidadResponsable, selectedUnidad]);
 
   const filtered = proyectos.filter((p) =>
     !filter.search || p.nombre.toLowerCase().includes(filter.search.toLowerCase()) || p.codigoInterno?.toLowerCase().includes(filter.search.toLowerCase())
@@ -49,23 +70,37 @@ const Proyectos = () => {
       </Box>
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={4}>
+        <Grid item xs={12} sm={3}>
           <TextField fullWidth placeholder="Buscar proyecto..." size="small" value={filter.search}
             onChange={(e) => setFilter({ ...filter, search: e.target.value })}
             InputProps={{ startAdornment: <InputAdornment position="start"><Search /></InputAdornment> }} />
         </Grid>
-        <Grid item xs={12} sm={4}>
+        <Grid item xs={12} sm={3}>
           <TextField select fullWidth size="small" label="Estado" value={filter.estado}
             onChange={(e) => setFilter({ ...filter, estado: e.target.value })}>
             <MenuItem value="">Todos</MenuItem>
             {Object.keys(estadoColors).map((e) => <MenuItem key={e} value={e}>{e}</MenuItem>)}
           </TextField>
         </Grid>
-        <Grid item xs={12} sm={4}>
+        <Grid item xs={12} sm={3}>
           <TextField select fullWidth size="small" label="Tipo" value={filter.tipo}
             onChange={(e) => setFilter({ ...filter, tipo: e.target.value })}>
             <MenuItem value="">Todos</MenuItem>
             {['CAMINO', 'PUENTE', 'ELECTRIFICACION', 'AGUA_POTABLE', 'SANEAMIENTO', 'EDIFICACION'].map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
+          </TextField>
+        </Grid>
+        <Grid item xs={12} sm={3}>
+          <TextField select fullWidth size="small" label="Unidad" value={filter.unidadResponsable}
+            onChange={(e) => setFilter({ ...filter, unidadResponsable: e.target.value })}>
+            <MenuItem value="">Todas</MenuItem>
+            {unidades.map((u) => (
+              <MenuItem key={u._id} value={u._id}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: u.color }} />
+                  {u.nombre}
+                </Box>
+              </MenuItem>
+            ))}
           </TextField>
         </Grid>
       </Grid>
@@ -80,7 +115,16 @@ const Proyectos = () => {
                 <CardContent>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
                     <Box>
-                      <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{p.nombre}</Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                        {p.unidadResponsable && (
+                          <Chip
+                            label={p.unidadResponsable.codigo}
+                            size="small"
+                            sx={{ bgcolor: `${p.unidadResponsable.color}22`, color: p.unidadResponsable.color, fontWeight: 700 }}
+                          />
+                        )}
+                        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{p.nombre}</Typography>
+                      </Box>
                       <Typography variant="body2" color="text.secondary">{p.codigoInterno} | {p.tipo} | {p.municipio}</Typography>
                     </Box>
                     <Box sx={{ display: 'flex', gap: 1 }}>

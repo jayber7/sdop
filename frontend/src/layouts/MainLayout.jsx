@@ -1,34 +1,38 @@
-import React, { useState } from 'react';
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Outlet, useNavigate } from 'react-router-dom';
 import {
-  AppBar, Toolbar, Typography, IconButton, Drawer, List, ListItem, ListItemIcon, ListItemText,
-  Box, Divider, Avatar, Menu, MenuItem,
+  AppBar, Toolbar, Typography, IconButton, Drawer,
+  Box, Avatar, Menu, MenuItem, Divider,
 } from '@mui/material';
 import {
-  Menu as MenuIcon, Dashboard as DashboardIcon, Engineering as ProjectsIcon,
-  Assignment as AvancesIcon, Business as EmpresasIcon, People as PersonasIcon,
-  AccountBalance as HitosIcon, Logout as LogoutIcon, Feedback as FeedbackIcon,
+  Menu as MenuIcon, Feedback as FeedbackIcon, Logout as LogoutIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import FeedbackButton from '../components/FeedbackButton';
+import UnitSidebar from '../components/UnitSidebar';
+import api from '../services/api';
 
-const drawerWidth = 260;
-
-const menuItems = [
-  { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
-  { text: 'Proyectos', icon: <ProjectsIcon />, path: '/proyectos' },
-  { text: 'Avances', icon: <AvancesIcon />, path: '/avances' },
-  { text: 'Empresas', icon: <EmpresasIcon />, path: '/empresas' },
-  { text: 'Personas Técnicas', icon: <PersonasIcon />, path: '/personas-tecnicas' },
-  { text: 'Hitos Presupuestarios', icon: <HitosIcon />, path: '/hitos' },
-];
+const drawerWidth = 280;
 
 const MainLayout = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
+  const [unidades, setUnidades] = useState([]);
+  const [selectedUnidad, setSelectedUnidad] = useState('');
   const navigate = useNavigate();
-  const location = useLocation();
   const { user, logout } = useAuth();
+
+  useEffect(() => {
+    const fetchUnidades = async () => {
+      try {
+        const res = await api.get('/unidades');
+        setUnidades(res.data.data || []);
+      } catch (err) {
+        console.error('Error loading unidades:', err);
+      }
+    };
+    fetchUnidades();
+  }, []);
 
   const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
   const handleMenuOpen = (e) => setAnchorEl(e.currentTarget);
@@ -36,45 +40,12 @@ const MainLayout = () => {
   const handleLogout = () => { logout(); navigate('/login'); };
 
   const drawer = (
-    <Box sx={{ width: drawerWidth }}>
-      <Box sx={{ p: 2, textAlign: 'center', bgcolor: 'primary.main', color: 'white' }}>
-        <Typography variant="h6" sx={{ fontWeight: 700 }}>SDOP</Typography>
-        <Typography variant="caption" sx={{ opacity: 0.8 }}>Gestión de Obras Públicas</Typography>
-      </Box>
-      <Divider />
-      <List>
-        {menuItems.map((item) => (
-          <ListItem
-            key={item.text}
-            button
-            onClick={() => { navigate(item.path); setMobileOpen(false); }}
-            sx={{
-              bgcolor: location.pathname === item.path ? 'primary.light' : 'transparent',
-              color: location.pathname === item.path ? 'white' : 'inherit',
-              '&:hover': { bgcolor: 'primary.light', color: 'white' },
-            }}
-          >
-            <ListItemIcon sx={{ color: 'inherit' }}>{item.icon}</ListItemIcon>
-            <ListItemText primary={item.text} />
-          </ListItem>
-        ))}
-      </List>
-      <Divider />
-      <List>
-        <ListItem
-          button
-          onClick={() => { navigate('/feedback'); setMobileOpen(false); }}
-          sx={{
-            bgcolor: location.pathname === '/feedback' ? 'warning.light' : 'transparent',
-            color: location.pathname === '/feedback' ? 'white' : 'inherit',
-            '&:hover': { bgcolor: 'warning.light', color: 'white' },
-          }}
-        >
-          <ListItemIcon sx={{ color: 'inherit' }}><FeedbackIcon /></ListItemIcon>
-          <ListItemText primary="Feedback" />
-        </ListItem>
-      </List>
-    </Box>
+    <UnitSidebar
+      unidades={unidades}
+      selectedUnidad={selectedUnidad}
+      setSelectedUnidad={setSelectedUnidad}
+      onLogout={handleLogout}
+    />
   );
 
   return (
@@ -93,6 +64,7 @@ const MainLayout = () => {
           <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
             <MenuItem disabled>{user?.nombre}</MenuItem>
             <MenuItem disabled sx={{ opacity: 0.7 }}>{user?.email}</MenuItem>
+            <MenuItem disabled sx={{ opacity: 0.7 }}>{user?.rol}</MenuItem>
             <Divider />
             <MenuItem onClick={() => { handleMenuClose(); navigate('/feedback'); }}>
               <FeedbackIcon sx={{ mr: 1 }} fontSize="small" /> Feedback
@@ -111,7 +83,7 @@ const MainLayout = () => {
         </Drawer>
       </Box>
       <Box component="main" sx={{ flexGrow: 1, p: 3, width: { sm: `calc(100% - ${drawerWidth}px)` }, mt: 8 }}>
-        <Outlet />
+        <Outlet context={{ selectedUnidad }} />
       </Box>
       <FeedbackButton />
     </Box>

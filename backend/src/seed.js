@@ -7,11 +7,90 @@
 
 require('dotenv').config();
 const mongoose = require('mongoose');
+const UnidadOrganizativa = require('./models/UnidadOrganizativa');
+const Usuario = require('./models/Usuario');
 const Proyecto = require('./models/Proyecto');
 const Empresa = require('./models/Empresa');
 const PersonaTecnica = require('./models/PersonaTecnica');
 const HitoPresupuestario = require('./models/HitoPresupuestario');
 const Feedback = require('./models/Feedback');
+const PortafolioProyecto = require('./models/PortafolioProyecto');
+const ProgramacionEjecucion = require('./models/ProgramacionEjecucion');
+const PresupuestoBase = require('./models/PresupuestoBase');
+const EficienciaEnergetica = require('./models/EficienciaEnergetica');
+const SolicitudFinanciamiento = require('./models/SolicitudFinanciamiento');
+const PlanMovilidad = require('./models/PlanMovilidad');
+const CapacitacionSimulacro = require('./models/CapacitacionSimulacro');
+const PlanCoberturaSaneamiento = require('./models/PlanCoberturaSaneamiento');
+const GestionAmbiental = require('./models/GestionAmbiental');
+
+const unidades = [
+  {
+    nombre: 'Dirección de Infraestructura',
+    codigo: 'DI',
+    descripcion: 'Planes maestros de obras públicas, portafolio de proyectos, PAC, presupuesto',
+    color: '#1565c0',
+    icono: 'Engineering',
+    planEstrategico: {
+      objetivos: ['Gestión de proyectos y presupuesto'],
+      programas: ['Planes Maestros', 'Diagnóstico de Necesidades', 'PAC'],
+    },
+  },
+  {
+    nombre: 'Jefatura de Energía',
+    codigo: 'JE',
+    descripcion: 'Diagnóstico energético, expansión de redes, proyectos de energías renovables',
+    color: '#2e7d32',
+    icono: 'ElectricBolt',
+    planEstrategico: {
+      objetivos: ['Gestión de recursos energéticos y proyectos'],
+      programas: ['Electrificación Rural', 'Energías Renovables'],
+    },
+  },
+  {
+    nombre: 'Jefatura de Transporte',
+    codigo: 'JT',
+    descripcion: 'Plan integral de movilidad, inventario de red vial, mantenimiento vial',
+    color: '#e65100',
+    icono: 'Road',
+    planEstrategico: {
+      objetivos: ['Movilidad y infraestructura vial'],
+      programas: ['Plan de Movilidad', 'Mantenimiento Vial', 'Licencias'],
+    },
+  },
+  {
+    nombre: 'Jefatura de Unidad de Prevención Riesgos y Emergencias',
+    codigo: 'JUPRE',
+    descripcion: 'Mapas de riesgos, planes de contingencia, sistemas de alerta temprana',
+    color: '#6a1b9a',
+    icono: 'Warning',
+    planEstrategico: {
+      objetivos: ['Prevención y respuesta ante riesgos'],
+      programas: ['Mapas de Riesgo', 'Planes de Contingencia', 'Alerta Temprana'],
+    },
+  },
+  {
+    nombre: 'Jefatura de Unidad de Saneamiento',
+    codigo: 'JUS',
+    descripcion: 'Diagnóstico de agua potable, redes de saneamiento, gestión de residuos',
+    color: '#c62828',
+    icono: 'WaterDrop',
+    planEstrategico: {
+      objetivos: ['Agua potable y gestión de residuos'],
+      programas: ['Redes de Agua', 'Plantas de Tratamiento', 'GIRS'],
+    },
+  },
+];
+
+const tipoToUnidad = {
+  CAMINO: 'JT',
+  PUENTE: 'JT',
+  ELECTRIFICACION: 'JE',
+  AGUA_POTABLE: 'JUS',
+  SANEAMIENTO: 'JUS',
+  EDIFICACION: 'DI',
+  OTRO: 'DI',
+};
 
 // Datos de empresas constructoras (extraídas/inferidas de los informes)
 const empresas = [
@@ -710,7 +789,78 @@ async function seedDatabase() {
     await Proyecto.deleteMany({});
     await Empresa.deleteMany({});
     await PersonaTecnica.deleteMany({});
+    await UnidadOrganizativa.deleteMany({});
+    await Usuario.deleteMany({});
+    await PortafolioProyecto.deleteMany({});
+    await ProgramacionEjecucion.deleteMany({});
+    await PresupuestoBase.deleteMany({});
+    await EficienciaEnergetica.deleteMany({});
+    await SolicitudFinanciamiento.deleteMany({});
+    await PlanMovilidad.deleteMany({});
+    await CapacitacionSimulacro.deleteMany({});
+    await PlanCoberturaSaneamiento.deleteMany({});
+    await GestionAmbiental.deleteMany({});
     console.log('Datos existentes eliminados');
+
+    // Insertar unidades organizativas
+    console.log('\nInsertando unidades organizativas...');
+    const unidadesInsertadas = await UnidadOrganizativa.insertMany(unidades);
+    console.log(`${unidadesInsertadas.length} unidades insertadas`);
+
+    // Crear mapa de codigo -> id
+    const unidadMap = {};
+    unidadesInsertadas.forEach(u => { unidadMap[u.codigo] = u._id; });
+
+    // Crear usuario ADMIN por defecto
+    console.log('\nCreando usuario ADMIN por defecto...');
+    const adminUser = await Usuario.create({
+      nombre: 'Administrador SDOP',
+      email: 'admin@sdop.bo',
+      password: 'Admin123!',
+      rol: 'ADMIN',
+      unidadesAcceso: unidadesInsertadas.map(u => u._id),
+      activo: true,
+    });
+    console.log(`Usuario ADMIN creado: ${adminUser.email}`);
+
+    // Crear usuarios de prueba para otros roles
+    const usuariosPrueba = [
+      {
+        nombre: 'Ing. Fernando Torrez Mamani',
+        email: 'ftorrez@sdop.bo',
+        password: 'Supervisor123!',
+        rol: 'SUPERVISOR',
+        unidadesAcceso: [unidadMap['JT'], unidadMap['DI']],
+        activo: true,
+      },
+      {
+        nombre: 'Ing. Pedro Huanca Flores',
+        email: 'phuanca@sdop.bo',
+        password: 'Inspector123!',
+        rol: 'INSPECTOR',
+        unidadesAcceso: [unidadMap['JUS']],
+        activo: true,
+      },
+      {
+        nombre: 'Ing. Diego Condori Vargas',
+        email: 'dcondori@sdop.bo',
+        password: 'Fiscal123!',
+        rol: 'FISCAL',
+        unidadesAcceso: unidadesInsertadas.map(u => u._id),
+        activo: true,
+      },
+      {
+        nombre: 'Usuario Visor',
+        email: 'visor@sdop.bo',
+        password: 'Visor123!',
+        rol: 'VISOR',
+        unidadesAcceso: [unidadMap['DI']],
+        activo: true,
+      },
+    ];
+
+    const usuariosCreados = await Usuario.insertMany(usuariosPrueba);
+    console.log(`${usuariosCreados.length} usuarios de prueba creados`);
 
     // Insertar empresas
     console.log('\nInsertando empresas...');
@@ -729,6 +879,7 @@ async function seedDatabase() {
       const supervisorIndex = index % personasInsertadas.length;
       const inspectorIndex = (index + 1) % personasInsertadas.length;
       const fiscalIndex = (index + 2) % personasInsertadas.length;
+      const unidadCodigo = tipoToUnidad[proyecto.tipo] || 'DI';
 
       return {
         ...proyecto,
@@ -736,6 +887,7 @@ async function seedDatabase() {
         supervisorId: personasInsertadas[supervisorIndex]._id,
         inspectorId: personasInsertadas[inspectorIndex]._id,
         fiscalId: personasInsertadas[fiscalIndex]._id,
+        unidadResponsable: unidadMap[unidadCodigo],
       };
     });
 
@@ -837,14 +989,111 @@ async function seedDatabase() {
     await Feedback.insertMany(feedbacks);
     console.log(`${feedbacks.length} feedbacks sembrados`);
 
+    // Sembrar nuevos modelos - DI
+    console.log('\nSembrando modelos DI (Dirección de Infraestructura)...');
+    const portafolioProyectos = [
+      { codigo: 'PORT-DI-001', nombre: 'Ficha Técnica - Camino Oruro-Challapata', tipo: 'FICHA_TECNICA', unidadResponsable: unidadMap['DI'], municipio: 'Oruro', descripcion: 'Estudio de pre-inversión para camino doble vía', beneficiarios: 50000, presupuestoEstimado: 33000000, estado: 'APROBADO', fechaElaboracion: new Date('2024-06-01'), fechaAprobacion: new Date('2024-09-15') },
+      { codigo: 'PORT-DI-002', nombre: 'Diseño Final - Casa de Acogida', tipo: 'DISEÑO_FINAL', unidadResponsable: unidadMap['DI'], municipio: 'Oruro', descripcion: 'Diseño técnico final para casa de acogida departamental', beneficiarios: 200, presupuestoEstimado: 8205786, estado: 'EN_ELABORACION', fechaElaboracion: new Date('2025-01-15') },
+      { codigo: 'PORT-DI-003', nombre: 'Pre-inversión - Teatro Palais Concert', tipo: 'PRE_INVERSION', unidadResponsable: unidadMap['DI'], municipio: 'Oruro', descripcion: 'Estudio de pre-inversión para restauración del teatro', beneficiarios: 5000, presupuestoEstimado: 6635421, estado: 'REVISION', fechaElaboracion: new Date('2024-03-01') },
+    ];
+    await PortafolioProyecto.insertMany(portafolioProyectos);
+    console.log(`${portafolioProyectos.length} portafolios de proyecto sembrados`);
+
+    const programacionesEjecucion = [
+      { codigo: 'PROG-DI-001', nombre: 'Programación Q1 2025 - Infraestructura', unidadResponsable: unidadMap['DI'], gestion: 2025, trimestre: 1, avanceFisicoProgramado: 25, avanceFisicoEjecutado: 22, avanceFinancieroProgramado: 25, avanceFinancieroEjecutado: 20, presupuestoAsignado: 50000000, presupuestoEjecutado: 40000000, estado: 'EN_EJECUCION' },
+      { codigo: 'PROG-DI-002', nombre: 'Programación Q2 2025 - Infraestructura', unidadResponsable: unidadMap['DI'], gestion: 2025, trimestre: 2, avanceFisicoProgramado: 50, avanceFisicoEjecutado: 0, avanceFinancieroProgramado: 50, avanceFinancieroEjecutado: 0, presupuestoAsignado: 50000000, estado: 'PROGRAMADO' },
+    ];
+    await ProgramacionEjecucion.insertMany(programacionesEjecucion);
+    console.log(`${programacionesEjecucion.length} programaciones de ejecución sembradas`);
+
+    const presupuestosBase = [
+      { codigo: 'PRES-DI-001', nombre: 'Presupuesto Base DI 2025', unidadResponsable: unidadMap['DI'], gestion: 2025, tipoPresupuesto: 'BASE', montoTotal: 100000000, montoEjecutado: 40000000, estado: 'EN_EJECUCION', partidas: [{ codigo: '101', descripcion: 'Caminos', montoAsignado: 60000000, montoEjecutado: 25000000 }, { codigo: '102', descripcion: 'Edificios', montoAsignado: 40000000, montoEjecutado: 15000000 }] },
+      { codigo: 'PRES-DI-002', nombre: 'Flujo Efectividad DI 2025', unidadResponsable: unidadMap['DI'], gestion: 2025, tipoPresupuesto: 'FLUJO_EFECTIVIDAD', montoTotal: 100000000, flujosMensuales: [{ mes: 1, montoProgramado: 8000000, montoEjecutado: 7500000 }, { mes: 2, montoProgramado: 8000000, montoEjecutado: 7000000 }], estado: 'EN_EJECUCION' },
+    ];
+    await PresupuestoBase.insertMany(presupuestosBase);
+    console.log(`${presupuestosBase.length} presupuestos base sembrados`);
+
+    // Sembrar nuevos modelos - JE
+    console.log('\nSembrando modelos JE (Jefatura de Energía)...');
+    const eficienciasEnergeticas = [
+      { codigo: 'EE-JE-001', edificio: 'Gobernación Departamental', unidadResponsable: unidadMap['JE'], municipio: 'Oruro', tipoEdificio: 'OFICINA_GUBERNAMENTAL', consumoActualKwh: 15000, consumoObjetivoKwh: 10000, ahorroEstimadoPorcentaje: 33, medidas: [{ descripcion: 'Instalación de paneles solares', costoEstimado: 200000, ahorroEstimado: 5000, estado: 'APROBADA' }], diagnosticoFecha: new Date('2025-01-15'), estado: 'PLANIFICACION' },
+      { codigo: 'EE-JE-002', edificio: 'Hospital General', unidadResponsable: unidadMap['JE'], municipio: 'Oruro', tipoEdificio: 'HOSPITAL', consumoActualKwh: 25000, consumoObjetivoKwh: 18000, ahorroEstimadoPorcentaje: 28, estado: 'DIAGNOSTICO' },
+    ];
+    await EficienciaEnergetica.insertMany(eficienciasEnergeticas);
+    console.log(`${eficienciasEnergeticas.length} eficiencias energéticas sembradas`);
+
+    const solicitudesFinanciamiento = [
+      { codigo: 'SOL-JE-001', nombre: 'Financiamiento Electrificación Rural Fase IV', unidadResponsable: unidadMap['JE'], entidadFinanciera: 'CAF', montoSolicitado: 15000000, moneda: 'USD', tipoFinanciamiento: 'PRESTAMO', estado: 'EN_EVALUACION', fechaSolicitud: new Date('2025-02-01') },
+      { codigo: 'SOL-JE-002', nombre: 'Donación Energía Solar Comunidades', unidadResponsable: unidadMap['JE'], entidadFinanciera: 'Banco Mundial', montoSolicitado: 5000000, moneda: 'USD', tipoFinanciamiento: 'DONACION', estado: 'APROBADA', fechaSolicitud: new Date('2024-11-01'), fechaRespuesta: new Date('2025-01-15') },
+    ];
+    await SolicitudFinanciamiento.insertMany(solicitudesFinanciamiento);
+    console.log(`${solicitudesFinanciamiento.length} solicitudes de financiamiento sembradas`);
+
+    // Sembrar nuevos modelos - JT
+    console.log('\nSembrando modelos JT (Jefatura de Transporte)...');
+    const planesMovilidad = [
+      { codigo: 'PM-JT-001', nombre: 'Plan Movilidad Urbana Oruro 2025-2030', unidadResponsable: unidadMap['JT'], ambito: 'URBANO', municipio: 'Oruro', diagnostico: 'Alta congestión vehicular en zona central', objetivos: ['Reducir tiempos de viaje', 'Mejorar transporte público'], acciones: [{ descripcion: 'Implementación de ciclovías', prioridad: 'ALTA', plazo: '12 meses', costoEstimado: 2000000, estado: 'APROBADA' }], estado: 'EN_EJECUCION', fechaAprobacion: new Date('2025-01-15') },
+      { codigo: 'PM-JT-002', nombre: 'Plan Movilidad Rural Sajama', unidadResponsable: unidadMap['JT'], ambito: 'RURAL', municipio: 'Huayllamarca', estado: 'ELABORACION' },
+    ];
+    await PlanMovilidad.insertMany(planesMovilidad);
+    console.log(`${planesMovilidad.length} planes de movilidad sembrados`);
+
+    // Sembrar nuevos modelos - JUPRE
+    console.log('\nSembrando modelos JUPRE (Prevención Riesgos)...');
+    const capacitacionesSimulacros = [
+      { codigo: 'CAP-JUPRE-001', nombre: 'Simulacro Sismo Oruro 2025', unidadResponsable: unidadMap['JUPRE'], tipo: 'SIMULACRO', tema: 'Respuesta ante sismos', municipio: 'Oruro', fechaProgramada: new Date('2025-06-15'), participantesObjetivo: 500, duracion: '4 horas', estado: 'PROGRAMADO' },
+      { codigo: 'CAP-JUPRE-002', nombre: 'Capacitación Primeros Auxilios', unidadResponsable: unidadMap['JUPRE'], tipo: 'CAPACITACION', tema: 'Primeros auxilios básicos', municipio: 'Challapata', fechaProgramada: new Date('2025-04-20'), fechaRealizada: new Date('2025-04-20'), participantes: 45, participantesObjetivo: 50, duracion: '8 horas', facilitador: 'Cruz Roja Oruro', estado: 'REALIZADO', evaluacion: { satisfaccion: 4.5, aprendizaje: 4.2 } },
+    ];
+    await CapacitacionSimulacro.insertMany(capacitacionesSimulacros);
+    console.log(`${capacitacionesSimulacros.length} capacitaciones/simulacros sembrados`);
+
+    // Sembrar nuevos modelos - JUS
+    console.log('\nSembrando modelos JUS (Saneamiento)...');
+    const planesCobertura = [
+      { codigo: 'PCS-JUS-001', nombre: 'Plan Cobertura Agua Potable Cercado', unidadResponsable: unidadMap['JUS'], municipio: 'Oruro', provincia: 'Cercado', tipoSaneamiento: 'AGUA_POTABLE', coberturaActualPorcentaje: 75, coberturaObjetivoPorcentaje: 95, poblacionBeneficiaria: 30000, familiasBeneficiarias: 8000, acciones: [{ descripcion: 'Ampliación red de distribución zona sur', tipo: 'AMPLIACION', costoEstimado: 5000000, plazo: '18 meses', estado: 'APROBADA' }], estado: 'EN_EJECUCION', fechaAprobacion: new Date('2025-01-10') },
+      { codigo: 'PCS-JUS-002', nombre: 'Plan Alcantarillado Sajama', unidadResponsable: unidadMap['JUS'], municipio: 'Huayllamarca', provincia: 'Sajama', tipoSaneamiento: 'ALCANTARILLADO', coberturaActualPorcentaje: 30, coberturaObjetivoPorcentaje: 70, estado: 'ELABORACION' },
+    ];
+    await PlanCoberturaSaneamiento.insertMany(planesCobertura);
+    console.log(`${planesCobertura.length} planes de cobertura sembrados`);
+
+    const gestionesAmbientales = [
+      { codigo: 'GA-JUS-001', nombre: 'EIA Presa Cawallicala', unidadResponsable: unidadMap['JUS'], municipio: 'Huayllamarca', tipoEvaluacion: 'EIA', componente: 'AGUA', impactoIdentificado: 'Alteración de caudal ecológico', nivelImpacto: 'MEDIO', medidasMitigacion: [{ descripcion: 'Caudal ecológico mínimo', costoEstimado: 500000, estado: 'EN_EJECUCION' }], estado: 'EN_EJECUCION', fechaEvaluacion: new Date('2024-06-01') },
+      { codigo: 'GA-JUS-002', nombre: 'Monitoreo Calidad Agua Paria', unidadResponsable: unidadMap['JUS'], municipio: 'Paria', tipoEvaluacion: 'MONITOREO', componente: 'AGUA', impactoIdentificado: 'Contaminación por actividades mineras', nivelImpacto: 'ALTO', estado: 'EN_EVALUACION', fechaEvaluacion: new Date('2025-03-01') },
+    ];
+    await GestionAmbiental.insertMany(gestionesAmbientales);
+    console.log(`${gestionesAmbientales.length} gestiones ambientales sembradas`);
+
     // Resumen
     console.log('\n===== RESUMEN DE SIEMBRA DE DATOS =====');
+    console.log(`Unidades Organizativas: ${unidadesInsertadas.length}`);
+    console.log(`Usuarios: ${usuariosCreados.length + 1} (incluye ADMIN)`);
     console.log(`Empresas: ${empresasInsertadas.length}`);
     console.log(`Personas Técnicas: ${personasInsertadas.length}`);
     console.log(`Proyectos: ${proyectosInsertados.length}`);
     console.log(`Hitos Presupuestarios: ${hitos.length}`);
     console.log(`Feedbacks: ${feedbacks.length}`);
+    console.log(`Portafolio Proyectos: ${portafolioProyectos.length}`);
+    console.log(`Programaciones Ejecución: ${programacionesEjecucion.length}`);
+    console.log(`Presupuestos Base: ${presupuestosBase.length}`);
+    console.log(`Eficiencias Energéticas: ${eficienciasEnergeticas.length}`);
+    console.log(`Solicitudes Financiamiento: ${solicitudesFinanciamiento.length}`);
+    console.log(`Planes Movilidad: ${planesMovilidad.length}`);
+    console.log(`Capacitaciones/Simulacros: ${capacitacionesSimulacros.length}`);
+    console.log(`Planes Cobertura Saneamiento: ${planesCobertura.length}`);
+    console.log(`Gestiones Ambientales: ${gestionesAmbientales.length}`);
     
+    console.log('\nDistribución de proyectos por unidad:');
+    const porUnidad = {};
+    unidadesInsertadas.forEach(u => { porUnidad[u.codigo] = 0; });
+    proyectosInsertados.forEach(p => {
+      const unidad = unidadesInsertadas.find(u => u._id.toString() === p.unidadResponsable?.toString());
+      if (unidad) porUnidad[unidad.codigo] = (porUnidad[unidad.codigo] || 0) + 1;
+    });
+    Object.entries(porUnidad).forEach(([codigo, count]) => {
+      const unidad = unidadesInsertadas.find(u => u.codigo === codigo);
+      console.log(`  ${codigo} (${unidad?.nombre}): ${count}`);
+    });
+
     console.log('\nDistribución de proyectos por tipo:');
     const tipos = {};
     proyectosInsertados.forEach(p => {

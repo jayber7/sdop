@@ -1,50 +1,103 @@
 const express = require('express');
 const router = express.Router();
-const passport = require('passport');
 const jwt = require('jsonwebtoken');
+const Usuario = require('../models/Usuario');
 const { authMiddleware } = require('../middleware/authMiddleware');
 
 const generateToken = (user) => {
-  return jwt.sign({ id: user._id, rol: user.rol }, process.env.JWT_SECRET || 'sdop-jwt-secret', {
-    expiresIn: process.env.JWT_EXPIRES_IN || '1d',
-  });
+  return jwt.sign(
+    { id: user._id, rol: user.rol, unidadesAcceso: user.unidadesAcceso },
+    process.env.JWT_SECRET || 'sdop-jwt-secret',
+    { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
+  );
 };
 
-const FRONTEND_URL = (process.env.FRONTEND_URL || 'http://localhost:5174').split(',')[0].trim();
+router.post('/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
 
-router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+    if (!email || !password) {
+      return res.status(400).json({ status: 'error', message: 'Email y contraseña son requeridos' });
+    }
 
-router.get('/google/callback', (req, res, next) => {
-  console.log('=== OAuth Callback Received ===');
-  console.log('Query params:', Object.keys(req.query));
-  console.log('Has code:', !!req.query.code);
-  console.log('Has error:', req.query.error || 'none');
-  
-  passport.authenticate('google', { session: false }, (err, user, info) => {
-    console.log('=== Passport Authenticate Result ===');
-    console.log('Error:', err ? err.message : 'none');
-    console.log('User:', user ? user.email : 'none');
-    console.log('Info:', info ? JSON.stringify(info) : 'none');
-    
-    if (err) {
-      console.error('OAuth error details:', err);
-      return res.redirect(`${FRONTEND_URL}/login?error=oauth_error&msg=${encodeURIComponent(err.message)}`);
+    const usuario = await Usuario.findOne({ email: email.toLowerCase() });
+    if (!usuario) {
+      return res.status(401).json({ status: 'error', message: 'Credenciales incorrectas' });
     }
-    if (!user) {
-      console.error('No user returned from OAuth');
-      return res.redirect(`${FRONTEND_URL}/login?error=no_user`);
+
+    if (usuario.bloqueadoHasta && usuario.bloqueadoHasta > new Date()) {
+      const minutosRestantes = Math.ceil((usuario.bloqueadoHasta - new Date()) / 60000);
+      return res.status(403).json({
+        status: 'error',
+        message: `Cuenta bloqueada. Intente nuevamente en ${minutosRestantes} minutos`,
+      });
     }
-    
-    try {
-      const token = generateToken(user);
-      console.log('Token generated successfully for:', user.email);
-      console.log('Redirecting to:', `${FRONTEND_URL}/auth/callback?token=***`);
-      res.redirect(`${FRONTEND_URL}/auth/callback?token=${token}`);
-    } catch (tokenErr) {
-      console.error('Token generation error:', tokenErr);
-      res.redirect(`${FRONTEND_URL}/login?error=token_error`);
+
+    const esValido = await usuario.comparePassword(password);
+    if (!esValido) {
+      usuario.intentosFallidos = (usuario.intentosFallidos || 0) + 1;
+
+      if (usuario.intentosFallidos >= 5) {
+        usuario.bloqueadoHasta = new Date(Date.now() + 15 * 60 * 1000);
+        usuario.intentosFallidos = 0;
+      }
+
+      await usuario.save();
+      return res.status(401).json({ status: 'error', message: 'Credenciales incorrectas' });
     }
-  })(req, res, next);
+
+    if (!usuario.activo) {
+      return res.status(403).json({ status: 'error', message: 'Cuenta desactivada. Contacte al administrador' });
+    }
+
+    usuario.intentosFallidos = 0;
+    usuario.bloqueadoHasta = null;
+    usuario.ultimoAcceso = new Date();
+    await usuario.save();
+
+    const token = generateToken(usuario);
+
+    res.json({
+      status: 'success',
+      data: {
+        token,
+        usuario: {
+          id: usuario._id,
+          nombre: usuario.nombre,
+          email: usuario.email,
+          rol: usuario.rol,
+          unidadesAcceso: usuario.unidadesAcceso,
+          activo: usuario.activo,
+        },
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+router.post('/cambiar-password', authMiddleware, async (req, res) => {
+  try {
+    const { passwordActual, passwordNuevo } = req.body;
+
+    if (!passwordActual || !passwordNuevo) {
+      return res.status(400).json({ status: 'error', message: 'Ambas contraseñas son requeridas' });
+    }
+
+    const usuario = await Usuario.findById(req.usuario._id);
+    const esValido = await usuario.comparePassword(passwordActual);
+
+    if (!esValido) {
+      return res.status(401).json({ status: 'error', message: 'Contraseña actual incorrecta' });
+    }
+
+    usuario.password = passwordNuevo;
+    await usuario.save();
+
+    res.json({ status: 'success', message: 'Contraseña actualizada' });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
 });
 
 router.get('/me', authMiddleware, (req, res) => {

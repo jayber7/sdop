@@ -22,6 +22,7 @@ const ProyectoForm = () => {
   const [success, setSuccess] = useState(false);
   const [empresas, setEmpresas] = useState([]);
   const [personas, setPersonas] = useState([]);
+  const [unidades, setUnidades] = useState([]);
   const [formData, setFormData] = useState({
     codigoInterno: '', codigoSisin: '', nombre: '', tipo: 'CAMINO',
     departamento: 'Oruro', provincia: '', municipio: '', comunidad: '',
@@ -29,6 +30,7 @@ const ProyectoForm = () => {
     presupuestoTotal: '', fuenteFinanciamiento: 'TGN', moneda: 'BOB',
     estado: 'PRE_INVERSION', estadoLicitacion: '',
     empresaId: '', supervisorId: '', inspectorId: '', fiscalId: '',
+    unidadResponsable: '',
     fechaInicioContrato: '', fechaFinContrato: '', plazoDias: '',
     fechaInicioEjecucion: '', fechaFinEjecucion: '', diasProrroga: 0,
     numeroContrato: '', modalidadContratacion: '', garantiaContrato: '',
@@ -38,12 +40,14 @@ const ProyectoForm = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [empRes, perRes] = await Promise.all([
+        const [empRes, perRes, uniRes] = await Promise.all([
           api.get('/gestion/empresas'),
           api.get('/gestion/personas-tecnicas'),
+          api.get('/unidades'),
         ]);
         setEmpresas(empRes.data.data);
         setPersonas(perRes.data.data);
+        setUnidades(uniRes.data.data || []);
 
         if (isEdit) {
           const res = await api.get(`/gestion/proyectos/${id}`);
@@ -67,6 +71,7 @@ const ProyectoForm = () => {
             supervisorId: p.supervisorId?._id || p.supervisorId || '',
             inspectorId: p.inspectorId?._id || p.inspectorId || '',
             fiscalId: p.fiscalId?._id || p.fiscalId || '',
+            unidadResponsable: p.unidadResponsable?._id || p.unidadResponsable || '',
             fechaInicioContrato: p.fechaInicioContrato ? p.fechaInicioContrato.split('T')[0] : '',
             fechaFinContrato: p.fechaFinContrato ? p.fechaFinContrato.split('T')[0] : '',
             plazoDias: p.plazoDias || '',
@@ -223,6 +228,21 @@ const ProyectoForm = () => {
             <CardContent>
               <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>Presupuesto y Estado</Typography>
               <Grid container spacing={2}>
+                <Grid item xs={12} sm={3}>
+                  <TextField select fullWidth size="small" label="Unidad Responsable"
+                    value={formData.unidadResponsable}
+                    onChange={(e) => setFormData({ ...formData, unidadResponsable: e.target.value })}>
+                    <MenuItem value="">Seleccionar...</MenuItem>
+                    {unidades.map(u => (
+                      <MenuItem key={u._id} value={u._id}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: u.color }} />
+                          {u.nombre}
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
                 <Grid item xs={12} sm={3}>
                   <TextField fullWidth size="small" label="Presupuesto Total (Bs) *" required type="number"
                     value={formData.presupuestoTotal}

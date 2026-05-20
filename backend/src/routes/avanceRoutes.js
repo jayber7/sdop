@@ -4,6 +4,7 @@ const multer = require('multer');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const cloudinary = require('../config/cloudinary');
 const { authMiddleware } = require('../middleware/authMiddleware');
+const { requirePermission } = require('../middleware/permissionMiddleware');
 const extractExifMiddleware = require('../middleware/exifExtractor');
 const geoVerificationMiddleware = require('../middleware/geoVerification');
 const AvanceObra = require('../models/AvanceObra');
@@ -25,7 +26,7 @@ const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
 // ============================================================
 
 // ESTADISTICAS DE AVANCES
-router.get('/stats', authMiddleware, async (req, res) => {
+router.get('/stats', authMiddleware, requirePermission('avances', 'read'), async (req, res) => {
   try {
     const { proyectoId } = req.query;
     const filter = {};
@@ -45,7 +46,7 @@ router.get('/stats', authMiddleware, async (req, res) => {
 });
 
 // SUBIR FOTO CON VERIFICACION (HIBRIDO: camara o archivo)
-router.post('/upload', authMiddleware, upload.single('foto'), extractExifMiddleware, geoVerificationMiddleware, async (req, res) => {
+router.post('/upload', authMiddleware, requirePermission('avances', 'create'), upload.single('foto'), extractExifMiddleware, geoVerificationMiddleware, async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ status: 'error', message: 'No se recibió ninguna imagen' });
@@ -71,7 +72,7 @@ router.post('/upload', authMiddleware, upload.single('foto'), extractExifMiddlew
 // ============================================================
 
 // LISTAR AVANCES
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', authMiddleware, requirePermission('avances', 'read'), async (req, res) => {
   try {
     const { proyectoId, estado, page = 1, limit = 20 } = req.query;
     const filter = {};
@@ -97,7 +98,7 @@ router.get('/', authMiddleware, async (req, res) => {
 });
 
 // CREAR AVANCE DE OBRA
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/', authMiddleware, requirePermission('avances', 'create'), async (req, res) => {
   try {
     const { proyectoId, fotos, ...avanceData } = req.body;
 
@@ -128,7 +129,7 @@ router.post('/', authMiddleware, async (req, res) => {
 // ============================================================
 
 // OBTENER AVANCE POR ID
-router.get('/:id', authMiddleware, async (req, res) => {
+router.get('/:id', authMiddleware, requirePermission('avances', 'read'), async (req, res) => {
   try {
     const avance = await AvanceObra.findById(req.params.id)
       .populate('proyectoId')
@@ -142,7 +143,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
 });
 
 // ACTUALIZAR AVANCE
-router.put('/:id', authMiddleware, async (req, res) => {
+router.put('/:id', authMiddleware, requirePermission('avances', 'update'), async (req, res) => {
   try {
     const avance = await AvanceObra.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
     if (!avance) return res.status(404).json({ status: 'error', message: 'Avance no encontrado' });
@@ -153,12 +154,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
 });
 
 // APROBAR AVANCE (supervisor)
-router.put('/:id/aprobar', authMiddleware, async (req, res) => {
+router.put('/:id/aprobar', authMiddleware, requirePermission('avances', 'aprobar'), async (req, res) => {
   try {
-    if (req.usuario.rol !== 'ADMIN' && req.usuario.rol !== 'SUPERVISOR') {
-      return res.status(403).json({ status: 'error', message: 'Solo supervisores pueden aprobar' });
-    }
-
     const avance = await AvanceObra.findById(req.params.id).populate('proyectoId');
     if (!avance) return res.status(404).json({ status: 'error', message: 'Avance no encontrado' });
 
@@ -186,12 +183,8 @@ router.put('/:id/aprobar', authMiddleware, async (req, res) => {
 });
 
 // OBSERVAR AVANCE (supervisor)
-router.put('/:id/observar', authMiddleware, async (req, res) => {
+router.put('/:id/observar', authMiddleware, requirePermission('avances', 'observar'), async (req, res) => {
   try {
-    if (req.usuario.rol !== 'ADMIN' && req.usuario.rol !== 'SUPERVISOR') {
-      return res.status(403).json({ status: 'error', message: 'Solo supervisores pueden observar' });
-    }
-
     const avance = await AvanceObra.findByIdAndUpdate(
       req.params.id,
       { estado: 'OBSERVADO', aprobadoPor: req.usuario._id, observacionesSupervisor: req.body.observaciones },
