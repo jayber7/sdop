@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Card, CardContent, Grid, Chip, Button, LinearProgress,
-  Divider, IconButton, Tooltip, Dialog, DialogTitle, DialogContent,
+  Divider, Dialog, DialogTitle, DialogContent, Stack,
   DialogActions, TextField, Alert,
 } from '@mui/material';
 import {
@@ -11,6 +11,7 @@ import {
 } from '@mui/icons-material';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import VerificationReportLayout from '../components/VerificationReportLayout';
 
 const ESTADO_COLORS = {
   BORRADOR: 'default',
@@ -20,11 +21,46 @@ const ESTADO_COLORS = {
 };
 
 const CLIMA_LABELS = {
-  SOLEADO: '☀️ Soleado',
-  NUBLADO: '☁️ Nublado',
-  LLUVIA: '🌧️ Lluvia',
-  GRANIZO: '🌨️ Granizo',
-  NIEBLA: '🌫️ Niebla',
+  SOLEADO: 'Soleado',
+  NUBLADO: 'Nublado',
+  LLUVIA: 'Lluvia',
+  GRANIZO: 'Granizo',
+  NIEBLA: 'Niebla',
+};
+
+const glass = {
+  card: {
+    bgcolor: 'rgba(10,14,39,0.6)',
+    backdropFilter: 'blur(12px)',
+    WebkitBackdropFilter: 'blur(12px)',
+    border: '1px solid rgba(100,180,255,0.12)',
+    borderRadius: 2,
+    boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
+  },
+  chipVerificado: {
+    bgcolor: 'rgba(0,200,150,0.15)',
+    color: 'rgba(0,220,180,0.9)',
+    border: '1px solid rgba(0,220,180,0.2)',
+    fontWeight: 600,
+  },
+  chipSospechoso: {
+    bgcolor: 'rgba(255,180,0,0.15)',
+    color: 'rgba(255,200,0,0.9)',
+    border: '1px solid rgba(255,200,0,0.2)',
+    fontWeight: 600,
+  },
+  btnApprove: {
+    bgcolor: 'rgba(0,200,150,0.2)',
+    color: 'rgba(0,220,180,0.95)',
+    border: '1px solid rgba(0,220,180,0.3)',
+    '&:hover': { bgcolor: 'rgba(0,200,150,0.35)' },
+  },
+  btnObserve: {
+    bgcolor: 'rgba(255,80,80,0.2)',
+    color: 'rgba(255,120,120,0.95)',
+    border: '1px solid rgba(255,80,80,0.3)',
+    '&:hover': { bgcolor: 'rgba(255,80,80,0.35)' },
+  },
 };
 
 const AvanceDetalle = () => {
@@ -91,208 +127,212 @@ const AvanceDetalle = () => {
   if (loading) return <Box sx={{ p: 3 }}><LinearProgress /></Box>;
   if (!avance) return <Box sx={{ p: 3 }}><Alert severity="error">Avance no encontrado</Alert></Box>;
 
+  const bgImage = avance.fotos?.length > 0 ? avance.fotos[0].url : null;
+  const unidadNombre = avance.proyectoId?.unidadResponsable?.nombre
+    ? `(${avance.proyectoId.unidadResponsable.nombre})`
+    : '';
+  const fechaReporte = avance.fechaReporte ? new Date(avance.fechaReporte) : new Date();
+  const fechaStr = fechaReporte.toLocaleDateString('es-BO', { year: 'numeric', month: 'long', day: 'numeric' });
+  const horaStr = fechaReporte.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' });
+
   return (
-    <Box>
-      {/* Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-        <IconButton onClick={() => navigate(-1)}><ArrowBack /></IconButton>
-        <Box sx={{ flexGrow: 1 }}>
-          <Typography variant="h4" sx={{ fontWeight: 700 }}>{avance.numeroReporte}</Typography>
-          <Typography variant="body2" color="text.secondary">
-            {avance.proyectoId?.nombre || 'Proyecto'}
-          </Typography>
-        </Box>
-        <Chip label={avance.estado} color={ESTADO_COLORS[avance.estado] || 'default'} sx={{ fontWeight: 600 }} />
-      </Box>
+    <VerificationReportLayout
+      mode="detalle"
+      backgroundImage={bgImage}
+      proyecto={avance.proyectoId}
+      avance={avance}
+      usuario={avance.registradoPor}
+      fecha={fechaStr}
+      hora={`${horaStr} hs.`}
+      unidadNombre={unidadNombre}
+      verificationCode={avance.codigoVerificacion}
+    >
+      {success && <Alert severity="success" sx={{ mb: 2, bgcolor: 'rgba(0,200,150,0.12)', color: 'rgba(0,220,180,0.9)', '& .MuiAlert-icon': { color: 'rgba(0,220,180,0.8)' } }}>{success}</Alert>}
+      {error && !dialogOpen && <Alert severity="error" sx={{ mb: 2, bgcolor: 'rgba(255,50,50,0.1)', color: 'rgba(255,100,100,0.9)', '& .MuiAlert-icon': { color: 'rgba(255,100,100,0.8)' } }}>{error}</Alert>}
 
-      {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
-
-      <Grid container spacing={3}>
-        {/* Info principal */}
+      <Grid container spacing={2}>
+        {/* Info */}
         <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>Información del Avance</Typography>
-              <Grid container spacing={2}>
+          <Card sx={glass.card}>
+            <CardContent sx={{ p: { xs: 1.5, md: 2 }, '&:last-child': { pb: { xs: 1.5, md: 2 } } }}>
+              <Typography sx={{ color: 'rgba(150,220,255,0.8)', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em', mb: 1.5 }}>
+                <ArrowBack sx={{ fontSize: 14, mr: 0.5, cursor: 'pointer', verticalAlign: 'middle' }} onClick={() => navigate(-1)} />
+                Información del Avance
+              </Typography>
+
+              <Grid container spacing={1.5}>
                 <Grid item xs={6}>
-                  <Typography variant="caption" color="text.secondary">Fecha de Reporte</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>{formatDate(avance.fechaReporte)}</Typography>
+                  <Typography sx={{ color: 'rgba(150,200,255,0.5)', fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>N° Reporte</Typography>
+                  <Typography sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 700, fontSize: '0.85rem' }}>{avance.numeroReporte}</Typography>
                 </Grid>
                 <Grid item xs={6}>
-                  <Typography variant="caption" color="text.secondary">Clima</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>{CLIMA_LABELS[avance.clima] || avance.clima || 'N/A'}</Typography>
+                  <Typography sx={{ color: 'rgba(150,200,255,0.5)', fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Estado</Typography>
+                  <Chip label={avance.estado} size="small"
+                    color={ESTADO_COLORS[avance.estado] || 'default'}
+                    sx={{ fontWeight: 600, fontSize: '0.65rem' }} />
                 </Grid>
                 <Grid item xs={6}>
-                  <Typography variant="caption" color="text.secondary">Avance Físico Parcial</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: 'primary.main' }}>{avance.avanceFisicoParcial}%</Typography>
+                  <Typography sx={{ color: 'rgba(150,200,255,0.5)', fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Avance Físico Parcial</Typography>
+                  <Typography sx={{ color: 'rgba(100,200,255,0.9)', fontWeight: 600, fontSize: '0.85rem' }}>{avance.avanceFisicoParcial}%</Typography>
                 </Grid>
                 <Grid item xs={6}>
-                  <Typography variant="caption" color="text.secondary">Avance Físico Acumulado</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: 'primary.main' }}>{avance.avanceFisicoAcumulado}%</Typography>
+                  <Typography sx={{ color: 'rgba(150,200,255,0.5)', fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Avance Físico Acumulado</Typography>
+                  <Typography sx={{ color: 'rgba(100,200,255,0.9)', fontWeight: 600, fontSize: '0.85rem' }}>{avance.avanceFisicoAcumulado}%</Typography>
                 </Grid>
                 <Grid item xs={6}>
-                  <Typography variant="caption" color="text.secondary">Avance Financiero Parcial</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>{avance.avanceFinancieroParcial ?? 'N/A'}{avance.avanceFinancieroParcial != null ? '%' : ''}</Typography>
+                  <Typography sx={{ color: 'rgba(150,200,255,0.5)', fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Avance Financiero Parcial</Typography>
+                  <Typography sx={{ color: 'rgba(255,255,255,0.85)', fontWeight: 600, fontSize: '0.85rem' }}>{avance.avanceFinancieroParcial ?? '—'}{avance.avanceFinancieroParcial != null ? '%' : ''}</Typography>
                 </Grid>
                 <Grid item xs={6}>
-                  <Typography variant="caption" color="text.secondary">Avance Financiero Acumulado</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>{avance.avanceFinancieroAcumulado ?? 'N/A'}{avance.avanceFinancieroAcumulado != null ? '%' : ''}</Typography>
+                  <Typography sx={{ color: 'rgba(150,200,255,0.5)', fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Avance Financiero Acumulado</Typography>
+                  <Typography sx={{ color: 'rgba(255,255,255,0.85)', fontWeight: 600, fontSize: '0.85rem' }}>{avance.avanceFinancieroAcumulado ?? '—'}{avance.avanceFinancieroAcumulado != null ? '%' : ''}</Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography sx={{ color: 'rgba(150,200,255,0.5)', fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Clima</Typography>
+                  <Typography sx={{ color: 'rgba(255,255,255,0.85)', fontWeight: 600, fontSize: '0.85rem' }}>{CLIMA_LABELS[avance.clima] || avance.clima || '—'}</Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography sx={{ color: 'rgba(150,200,255,0.5)', fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Registrado por</Typography>
+                  <Typography sx={{ color: 'rgba(255,255,255,0.85)', fontWeight: 600, fontSize: '0.85rem' }}>{avance.registradoPor?.nombre || '—'}</Typography>
                 </Grid>
               </Grid>
 
-              <Divider sx={{ my: 2 }} />
+              <Divider sx={{ my: 1.5, borderColor: 'rgba(255,255,255,0.06)' }} />
 
-              <Typography variant="caption" color="text.secondary">Descripción del Hito</Typography>
-              <Typography variant="body2" sx={{ mb: 1 }}>{avance.hitoDescripcion || 'N/A'}</Typography>
-
-              <Typography variant="caption" color="text.secondary">Actividades Realizadas</Typography>
-              <Typography variant="body2" sx={{ mb: 1, whiteSpace: 'pre-wrap' }}>{avance.actividadesRealizadas || 'N/A'}</Typography>
-
-              <Typography variant="caption" color="text.secondary">Problemas Identificados</Typography>
-              <Typography variant="body2" sx={{ mb: 1, whiteSpace: 'pre-wrap' }}>{avance.problemasIdentificados || 'Ninguno'}</Typography>
-
-              <Divider sx={{ my: 2 }} />
-
-              <Typography variant="caption" color="text.secondary">Registrado por</Typography>
-              <Typography variant="body2">{avance.registradoPor?.nombre || 'N/A'}</Typography>
+              {avance.hitoDescripcion && (
+                <Box sx={{ mb: 1 }}>
+                  <Typography sx={{ color: 'rgba(150,200,255,0.5)', fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 0.3 }}>Descripción del Hito</Typography>
+                  <Typography sx={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.8rem' }}>{avance.hitoDescripcion}</Typography>
+                </Box>
+              )}
+              {avance.actividadesRealizadas && (
+                <Box sx={{ mb: 1 }}>
+                  <Typography sx={{ color: 'rgba(150,200,255,0.5)', fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 0.3 }}>Actividades Realizadas</Typography>
+                  <Typography sx={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.8rem', whiteSpace: 'pre-wrap' }}>{avance.actividadesRealizadas}</Typography>
+                </Box>
+              )}
+              {avance.problemasIdentificados && (
+                <Box sx={{ mb: 1 }}>
+                  <Typography sx={{ color: 'rgba(150,200,255,0.5)', fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 0.3 }}>Problemas Identificados</Typography>
+                  <Typography sx={{ color: 'rgba(255,200,0,0.7)', fontSize: '0.8rem', whiteSpace: 'pre-wrap' }}>{avance.problemasIdentificados}</Typography>
+                </Box>
+              )}
 
               {avance.aprobadoPor && (
                 <>
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                    {avance.estado === 'APROBADO' ? 'Aprobado' : 'Observado'} por
-                  </Typography>
-                  <Typography variant="body2">{avance.aprobadoPor.nombre}</Typography>
-                  <Typography variant="caption" color="text.secondary">{formatDate(avance.fechaAprobacion)}</Typography>
-                </>
-              )}
-
-              {avance.observacionesSupervisor && (
-                <>
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>Observaciones</Typography>
-                  <Alert severity={avance.estado === 'APROBADO' ? 'success' : 'warning'} sx={{ mt: 1 }}>
-                    {avance.observacionesSupervisor}
-                  </Alert>
+                  <Divider sx={{ my: 1.5, borderColor: 'rgba(255,255,255,0.06)' }} />
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    {avance.estado === 'APROBADO'
+                      ? <CheckCircle sx={{ fontSize: 16, color: 'rgba(0,220,180,0.8)' }} />
+                      : <Cancel sx={{ fontSize: 16, color: 'rgba(255,100,100,0.8)' }} />}
+                    <Box>
+                      <Typography sx={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.7rem' }}>
+                        {avance.estado === 'APROBADO' ? 'Aprobado' : 'Observado'} por <strong>{avance.aprobadoPor?.nombre}</strong>
+                      </Typography>
+                      <Typography sx={{ color: 'rgba(150,200,255,0.4)', fontSize: '0.6rem' }}>{formatDate(avance.fechaAprobacion)}</Typography>
+                    </Box>
+                  </Box>
+                  {avance.observacionesSupervisor && (
+                    <Alert severity={avance.estado === 'APROBADO' ? 'success' : 'warning'}
+                      sx={{ mt: 1, bgcolor: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.7)', py: 0.5, '& .MuiAlert-icon': { fontSize: 16 } }}>
+                      {avance.observacionesSupervisor}
+                    </Alert>
+                  )}
                 </>
               )}
             </CardContent>
           </Card>
         </Grid>
 
-        {/* Fotos */}
+        {/* Photos */}
         <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-                <CameraAlt sx={{ mr: 1, verticalAlign: 'middle' }} />
+          <Card sx={glass.card}>
+            <CardContent sx={{ p: { xs: 1.5, md: 2 }, '&:last-child': { pb: { xs: 1.5, md: 2 } } }}>
+              <Typography sx={{ color: 'rgba(150,220,255,0.8)', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em', mb: 1.5 }}>
+                <CameraAlt sx={{ fontSize: 14, mr: 0.5, verticalAlign: 'middle' }} />
                 Evidencia Fotográfica ({avance.fotos?.length || 0})
               </Typography>
 
               {!avance.fotos || avance.fotos.length === 0 ? (
-                <Typography color="text.secondary">Sin fotos</Typography>
+                <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.8rem', textAlign: 'center', py: 4 }}>
+                  Sin fotos
+                </Typography>
               ) : (
-                <Grid container spacing={2}>
-                  {avance.fotos.map((foto, i) => (
-                    <Grid item xs={12} key={i}>
-                      <Card variant="outlined">
+                <Box sx={{ maxHeight: 400, overflow: 'auto', '&::-webkit-scrollbar': { width: 3 }, '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255,255,255,0.1)', borderRadius: 2 } }}>
+                  <Stack spacing={1.5}>
+                    {avance.fotos.map((foto, i) => (
+                      <Card key={i} sx={{ bgcolor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 1.5, overflow: 'hidden' }}>
                         <img src={foto.url} alt={`Foto ${i + 1}`}
-                          style={{ width: '100%', height: 200, objectFit: 'cover', borderRadius: '4px 4px 0 0' }} />
-                        <Box sx={{ p: 1.5 }}>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                            <Chip
-                              label={foto.verificacion?.estado || 'PENDIENTE'}
-                              size="small"
-                              color={foto.verificacion?.estado === 'VERIFICADO' ? 'success' : foto.verificacion?.estado === 'SOSPECHOSO' ? 'warning' : 'default'}
-                            />
-                            <Chip label={foto.categoria || 'VISTA_GENERAL'} size="small" variant="outlined" />
+                          style={{ width: '100%', height: 180, objectFit: 'cover', display: 'block' }} />
+                        <Box sx={{ px: 1, py: 0.8 }}>
+                          <Box sx={{ display: 'flex', gap: 0.5, mb: 0.8, flexWrap: 'wrap' }}>
+                            <Chip label={foto.verificacion?.estado || 'PENDIENTE'} size="small"
+                              sx={foto.verificacion?.estado === 'VERIFICADO' ? glass.chipVerificado : glass.chipSospechoso} />
+                            <Chip label={foto.categoria || 'VISTA_GENERAL'} size="small"
+                              sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: 'rgba(150,200,255,0.6)', border: '1px solid rgba(255,255,255,0.08)', fontSize: '0.6rem' }} />
                           </Box>
-
                           {foto.exif && (
-                            <Box sx={{ mb: 1 }}>
+                            <>
                               {foto.exif.dispositivo && (
-                                <Typography variant="caption" display="block" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                  <Smartphone fontSize="inherit" sx={{ fontSize: 14 }} />
-                                  {foto.exif.dispositivo} {foto.exif.modeloCamara}
+                                <Typography variant="caption" sx={{ color: 'rgba(150,200,255,0.6)', fontSize: '0.6rem', display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                                  <Smartphone sx={{ fontSize: 10 }} /> {foto.exif.dispositivo} {foto.exif.modeloCamara}
                                 </Typography>
                               )}
                               {foto.exif.fechaCaptura && (
-                                <Typography variant="caption" display="block" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                  <AccessTime fontSize="inherit" sx={{ fontSize: 14 }} />
-                                  {formatDate(foto.exif.fechaCaptura)}
+                                <Typography variant="caption" sx={{ color: 'rgba(150,200,255,0.6)', fontSize: '0.6rem', display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                                  <AccessTime sx={{ fontSize: 10 }} /> {formatDate(foto.exif.fechaCaptura)}
                                 </Typography>
                               )}
                               {foto.exif.tieneGPS && (
-                                <Typography variant="caption" display="block" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                  <GpsFixed fontSize="inherit" sx={{ fontSize: 14 }} />
-                                  EXIF: {foto.exif.latitud?.toFixed(6)}, {foto.exif.longitud?.toFixed(6)}
+                                <Typography variant="caption" sx={{ color: 'rgba(150,200,255,0.6)', fontSize: '0.6rem', display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                                  <GpsFixed sx={{ fontSize: 10 }} /> {foto.exif.latitud?.toFixed(6)}, {foto.exif.longitud?.toFixed(6)}
                                 </Typography>
                               )}
-                              {!foto.exif.tieneGPS && foto.exif.dispositivo && (
-                                <Typography variant="caption" display="block" color="warning.main">
-                                  Sin GPS en EXIF
-                                </Typography>
-                              )}
+                            </>
+                          )}
+                          {foto.verificacion && foto.verificacion.distanciaObraMetros != null && (
+                            <Box sx={{ mt: 0.3, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <LocationOn sx={{ fontSize: 10, color: 'rgba(150,200,255,0.5)' }} />
+                              <Typography variant="caption" sx={{ color: 'rgba(150,200,255,0.5)', fontSize: '0.55rem' }}>
+                                Distancia: {foto.verificacion.distanciaObraMetros}m
+                              </Typography>
+                              {foto.verificacion.ubicacionValida
+                                ? <CheckCircle sx={{ fontSize: 10, color: 'rgba(0,220,180,0.7)' }} />
+                                : <Warning sx={{ fontSize: 10, color: 'rgba(255,200,0,0.7)' }} />}
                             </Box>
                           )}
-
-                          {foto.verificacion && (
-                            <Box sx={{ mt: 0.5 }}>
-                              <Divider sx={{ my: 0.5 }} />
-                              <Typography variant="caption" sx={{ fontWeight: 600 }}>Verificación:</Typography>
-                              {foto.verificacion.distanciaObraMetros != null && (
-                                <Typography variant="caption" display="block" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                  <LocationOn fontSize="inherit" sx={{ fontSize: 14 }} />
-                                  Distancia: {foto.verificacion.distanciaObraMetros}m
-                                  {foto.verificacion.ubicacionValida
-                                    ? <CheckCircle fontSize="inherit" color="success" />
-                                    : <Warning fontSize="inherit" color="warning" />}
-                                </Typography>
-                              )}
-                              {foto.verificacion.observaciones && (
-                                <Typography variant="caption" display="block" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                                  {foto.verificacion.observaciones}
-                                </Typography>
-                              )}
-                            </Box>
+                          {foto.verificacion?.observaciones && (
+                            <Typography variant="caption" sx={{ color: 'rgba(150,200,255,0.4)', fontSize: '0.55rem', fontStyle: 'italic', display: 'block', mt: 0.3 }}>
+                              {foto.verificacion.observaciones}
+                            </Typography>
                           )}
-
                           {foto.descripcion && (
-                            <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
+                            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.6rem', display: 'block', mt: 0.3 }}>
                               {foto.descripcion}
                             </Typography>
                           )}
                         </Box>
                       </Card>
-                    </Grid>
-                  ))}
-                </Grid>
+                    ))}
+                  </Stack>
+                </Box>
               )}
             </CardContent>
           </Card>
         </Grid>
 
-        {/* Acciones */}
+        {/* Actions */}
         {canManage && avance.estado === 'ENVIADO' && (
           <Grid item xs={12}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>Acciones</Typography>
+            <Card sx={glass.card}>
+              <CardContent sx={{ p: { xs: 1.5, md: 2 }, '&:last-child': { pb: { xs: 1.5, md: 2 } } }}>
                 <Box sx={{ display: 'flex', gap: 2 }}>
-                  <Button
-                    variant="contained"
-                    color="success"
-                    startIcon={<CheckCircle />}
-                    onClick={() => openDialog('APROBAR')}
-                    fullWidth
-                  >
+                  <Button fullWidth sx={glass.btnApprove} startIcon={<CheckCircle />}
+                    onClick={() => openDialog('APROBAR')}>
                     Aprobar Avance
                   </Button>
-                  <Button
-                    variant="contained"
-                    color="error"
-                    startIcon={<Cancel />}
-                    onClick={() => openDialog('OBSERVAR')}
-                    fullWidth
-                  >
+                  <Button fullWidth sx={glass.btnObserve} startIcon={<Cancel />}
+                    onClick={() => openDialog('OBSERVAR')}>
                     Observar Avance
                   </Button>
                 </Box>
@@ -303,36 +343,46 @@ const AvanceDetalle = () => {
       </Grid>
 
       {/* Dialog */}
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: 'rgba(10,14,39,0.95)', backdropFilter: 'blur(24px)',
+            border: '1px solid rgba(100,180,255,0.12)', borderRadius: 3,
+            boxShadow: '0 8px 60px rgba(0,0,0,0.7)',
+          },
+        }}>
+        <DialogTitle sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 700, fontSize: '1rem' }}>
           {accion === 'APROBAR' ? 'Aprobar Avance' : 'Observar Avance'}
         </DialogTitle>
         <DialogContent>
-          <TextField
-            fullWidth
-            multiline
-            rows={3}
-            label="Observaciones"
+          <TextField fullWidth multiline rows={3} label="Observaciones"
             value={observaciones}
             onChange={(e) => setObservaciones(e.target.value)}
             placeholder={accion === 'APROBAR' ? 'Comentario opcional...' : 'Describe las observaciones...'}
-            sx={{ mt: 1 }}
-          />
-          {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
+            sx={{
+              mt: 1,
+              '& .MuiInputBase-root': { bgcolor: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.85)', borderRadius: 1.5, '& fieldset': { border: '1px solid rgba(255,255,255,0.1)' } },
+              '& .MuiInputLabel-root': { color: 'rgba(150,200,255,0.5)', fontSize: '0.8rem' },
+            }} />
+          {error && <Alert severity="error" sx={{ mt: 2, bgcolor: 'rgba(255,50,50,0.1)', color: 'rgba(255,100,100,0.9)' }}>{error}</Alert>}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDialogOpen(false)}>Cancelar</Button>
-          <Button
-            variant="contained"
-            color={accion === 'APROBAR' ? 'success' : 'error'}
-            onClick={handleAprobarObservar}
-            disabled={submitting}
-          >
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setDialogOpen(false)}
+            sx={{ color: 'rgba(255,255,255,0.5)', '&:hover': { color: 'rgba(255,255,255,0.8)' } }}>
+            Cancelar
+          </Button>
+          <Button variant="contained" onClick={handleAprobarObservar} disabled={submitting}
+            sx={{
+              bgcolor: accion === 'APROBAR' ? 'rgba(0,200,150,0.3)' : 'rgba(255,80,80,0.3)',
+              color: accion === 'APROBAR' ? 'rgba(0,220,180,0.95)' : 'rgba(255,120,120,0.95)',
+              border: `1px solid ${accion === 'APROBAR' ? 'rgba(0,220,180,0.3)' : 'rgba(255,80,80,0.3)'}`,
+              '&:hover': { bgcolor: accion === 'APROBAR' ? 'rgba(0,200,150,0.5)' : 'rgba(255,80,80,0.5)' },
+            }}>
             {submitting ? 'Procesando...' : accion === 'APROBAR' ? 'Aprobar' : 'Observar'}
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </VerificationReportLayout>
   );
 };
 

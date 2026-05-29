@@ -66,47 +66,55 @@ const Proyectos = () => {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" sx={{ fontWeight: 700 }}>Proyectos</Typography>
-        <Button variant="contained" startIcon={<Add />} onClick={() => navigate('/proyectos/nuevo')}>Nuevo Proyecto</Button>
+        <Button variant="contained" color="primary" startIcon={<Add />} onClick={() => navigate('/proyectos/nuevo')}>
+          Nuevo Proyecto
+        </Button>
       </Box>
 
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={3}>
-          <TextField fullWidth placeholder="Buscar proyecto..." size="small" value={filter.search}
-            onChange={(e) => setFilter({ ...filter, search: e.target.value })}
-            InputProps={{ startAdornment: <InputAdornment position="start"><Search /></InputAdornment> }} />
-        </Grid>
-        <Grid item xs={12} sm={3}>
-          <TextField select fullWidth size="small" label="Estado" value={filter.estado}
-            onChange={(e) => setFilter({ ...filter, estado: e.target.value })}>
-            <MenuItem value="">Todos</MenuItem>
-            {Object.keys(estadoColors).map((e) => <MenuItem key={e} value={e}>{e}</MenuItem>)}
-          </TextField>
-        </Grid>
-        <Grid item xs={12} sm={3}>
-          <TextField select fullWidth size="small" label="Tipo" value={filter.tipo}
-            onChange={(e) => setFilter({ ...filter, tipo: e.target.value })}>
-            <MenuItem value="">Todos</MenuItem>
-            {['CAMINO', 'PUENTE', 'ELECTRIFICACION', 'AGUA_POTABLE', 'SANEAMIENTO', 'EDIFICACION'].map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
-          </TextField>
-        </Grid>
-        <Grid item xs={12} sm={3}>
-          <TextField select fullWidth size="small" label="Unidad" value={filter.unidadResponsable}
-            onChange={(e) => setFilter({ ...filter, unidadResponsable: e.target.value })}>
-            <MenuItem value="">Todas</MenuItem>
-            {unidades.map((u) => (
-              <MenuItem key={u._id} value={u._id}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: u.color }} />
-                  {u.nombre}
-                </Box>
-              </MenuItem>
-            ))}
-          </TextField>
-        </Grid>
-      </Grid>
+      <Card sx={{ mb: 3, p: 0.5 }}>
+        <CardContent sx={{ '&:last-child': { pb: 1 } }}>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={3}>
+              <TextField fullWidth placeholder="Buscar proyecto..." size="small" value={filter.search}
+                onChange={(e) => setFilter({ ...filter, search: e.target.value })}
+                InputProps={{ startAdornment: <InputAdornment position="start"><Search /></InputAdornment> }} />
+            </Grid>
+            <Grid item xs={12} sm={3}>
+              <TextField select fullWidth size="small" label="Estado" value={filter.estado}
+                onChange={(e) => setFilter({ ...filter, estado: e.target.value })}>
+                <MenuItem value="">Todos</MenuItem>
+                {Object.keys(estadoColors).map((e) => <MenuItem key={e} value={e}>{e}</MenuItem>)}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={3}>
+              <TextField select fullWidth size="small" label="Tipo" value={filter.tipo}
+                onChange={(e) => setFilter({ ...filter, tipo: e.target.value })}>
+                <MenuItem value="">Todos</MenuItem>
+                {['CAMINO', 'PUENTE', 'ELECTRIFICACION', 'AGUA_POTABLE', 'SANEAMIENTO', 'EDIFICACION'].map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={3}>
+              <TextField select fullWidth size="small" label="Unidad" value={filter.unidadResponsable}
+                onChange={(e) => setFilter({ ...filter, unidadResponsable: e.target.value })}>
+                <MenuItem value="">Todas</MenuItem>
+                {unidades.map((u) => (
+                  <MenuItem key={u._id} value={u._id}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: u.color }} />
+                      {u.nombre}
+                    </Box>
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
 
-      {loading ? <Typography>Cargando...</Typography> : filtered.length === 0 ? (
-        <Card><CardContent><Typography color="text.secondary">No se encontraron proyectos</Typography></CardContent></Card>
+      {loading ? (
+        <LinearProgress />
+      ) : filtered.length === 0 ? (
+        <Card><CardContent><Typography sx={{ color: 'rgba(255,255,255,0.4)' }}>No se encontraron proyectos</Typography></CardContent></Card>
       ) : (
         <Grid container spacing={2}>
           {filtered.map((p) => (
@@ -117,30 +125,27 @@ const Proyectos = () => {
                     <Box>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
                         {p.unidadResponsable && (
-                          <Chip
-                            label={p.unidadResponsable.codigo}
-                            size="small"
-                            sx={{ bgcolor: `${p.unidadResponsable.color}22`, color: p.unidadResponsable.color, fontWeight: 700 }}
-                          />
+                          <Chip label={p.unidadResponsable.codigo} size="small"
+                            sx={{ bgcolor: `${p.unidadResponsable.color}22`, color: p.unidadResponsable.color, fontWeight: 700 }} />
                         )}
-                        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{p.nombre}</Typography>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'rgba(255,255,255,0.85)' }}>{p.nombre}</Typography>
                       </Box>
-                      <Typography variant="body2" color="text.secondary">{p.codigoInterno} | {p.tipo} | {p.municipio}</Typography>
+                      <Typography variant="body2" sx={{ color: 'rgba(150,200,255,0.5)' }}>{p.codigoInterno} | {p.tipo} | {p.municipio}</Typography>
                     </Box>
                     <Box sx={{ display: 'flex', gap: 1 }}>
                       <Chip label={p.estado} size="small" color={estadoColors[p.estado] || 'default'} />
-                      <Button size="small" startIcon={<Edit />} onClick={() => navigate(`/proyectos/${p._id}/editar`)}>Editar</Button>
-                      <Button size="small" startIcon={<Visibility />} onClick={() => navigate(`/proyectos/${p._id}`)}>Ver</Button>
+                      <Button size="small" variant="outlined" startIcon={<Edit />} onClick={() => navigate(`/proyectos/${p._id}/editar`)}>Editar</Button>
+                      <Button size="small" variant="outlined" startIcon={<Visibility />} onClick={() => navigate(`/proyectos/${p._id}`)}>Ver</Button>
                     </Box>
                   </Box>
                   <Box sx={{ display: 'flex', gap: 3, mb: 1 }}>
-                    <Typography variant="body2">Presupuesto: <strong>Bs {p.presupuestoTotal?.toLocaleString()}</strong></Typography>
-                    <Typography variant="body2">Fuente: {p.fuenteFinanciamiento}</Typography>
+                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)' }}>Presupuesto: <strong style={{ color: 'rgba(255,255,255,0.85)' }}>Bs {p.presupuestoTotal?.toLocaleString()}</strong></Typography>
+                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)' }}>Fuente: {p.fuenteFinanciamiento}</Typography>
                   </Box>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Typography variant="caption" sx={{ minWidth: 60 }}>Físico: {p.avanceFisico}%</Typography>
+                    <Typography variant="caption" sx={{ color: 'rgba(150,200,255,0.6)', minWidth: 60 }}>Físico: {p.avanceFisico}%</Typography>
                     <LinearProgress variant="determinate" value={p.avanceFisico} sx={{ flexGrow: 1, height: 8, borderRadius: 1 }} />
-                    <Typography variant="caption" sx={{ minWidth: 90 }}>Financiero: {p.avanceFinanciero}%</Typography>
+                    <Typography variant="caption" sx={{ color: 'rgba(150,200,255,0.6)', minWidth: 90 }}>Financiero: {p.avanceFinanciero}%</Typography>
                   </Box>
                 </CardContent>
               </Card>

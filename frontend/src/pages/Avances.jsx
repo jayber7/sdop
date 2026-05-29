@@ -3,12 +3,14 @@ import { Box, Typography, Card, CardContent, Grid, Chip, Button, TextField, Menu
 import { Add, Visibility } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import ProjectSelectorModal from '../components/ProjectSelectorModal';
 
 const Avances = () => {
   const [avances, setAvances] = useState([]);
   const [proyectos, setProyectos] = useState([]);
   const [filter, setFilter] = useState({ proyectoId: '', estado: '' });
   const [loading, setLoading] = useState(true);
+  const [selectorOpen, setSelectorOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -33,7 +35,7 @@ const Avances = () => {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" sx={{ fontWeight: 700 }}>Avances de Obra</Typography>
-        <Button variant="contained" startIcon={<Add />} onClick={() => navigate('/avances/nuevo')}>Nuevo Avance</Button>
+        <Button variant="contained" startIcon={<Add />} onClick={() => setSelectorOpen(true)}>Nuevo Avance</Button>
       </Box>
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
@@ -84,6 +86,8 @@ const Avances = () => {
           ))}
         </Grid>
       )}
+
+      <ProjectSelectorModal open={selectorOpen} onClose={() => setSelectorOpen(false)} />
     </Box>
   );
 };

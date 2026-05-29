@@ -34,12 +34,15 @@ const UnitSidebar = ({ unidades, selectedUnidad, setSelectedUnidad, onLogout }) 
   const isActive = (path) => location.pathname === path;
 
   const menuItemStyle = (path) => ({
-    bgcolor: isActive(path) ? 'primary.light' : 'transparent',
-    color: isActive(path) ? 'white' : 'inherit',
-    '&:hover': { bgcolor: 'primary.light', color: 'white' },
-    borderRadius: 1,
+    bgcolor: isActive(path) ? 'rgba(91,154,255,0.12)' : 'transparent',
+    color: isActive(path) ? 'rgba(150,220,255,0.95)' : 'rgba(255,255,255,0.65)',
+    '&:hover': {
+      bgcolor: 'rgba(100,180,255,0.08)',
+      color: 'rgba(255,255,255,0.85)',
+    },
+    borderRadius: 1.5,
     mx: 1,
-    mb: 0.5,
+    mb: 0.3,
     fontSize: '0.85rem',
   });
 
@@ -57,18 +60,26 @@ const UnitSidebar = ({ unidades, selectedUnidad, setSelectedUnidad, onLogout }) 
   }
 
   return (
-    <Box sx={{ width: 280, overflowY: 'auto', height: '100%' }}>
-      <Box sx={{ p: 2, textAlign: 'center', bgcolor: 'primary.main', color: 'white' }}>
-        <Typography variant="h6" sx={{ fontWeight: 700 }}>SDOP</Typography>
-        <Typography variant="caption" sx={{ opacity: 0.8 }}>Gestión de Obras Públicas</Typography>
+    <Box sx={{
+      width: 280, overflowY: 'auto', height: '100%',
+      '&::-webkit-scrollbar': { width: 3 },
+      '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255,255,255,0.08)', borderRadius: 2 },
+    }}>
+      <Box sx={{
+        p: 2.5, textAlign: 'center',
+        background: 'linear-gradient(135deg, rgba(10,14,39,0.8) 0%, rgba(26,16,64,0.8) 100%)',
+        borderBottom: '1px solid rgba(100,180,255,0.08)',
+      }}>
+        <Typography variant="h6" sx={{ fontWeight: 700, color: 'rgba(255,255,255,0.92)' }}>SDOP</Typography>
+        <Typography variant="caption" sx={{ color: 'rgba(150,200,255,0.5)' }}>Gestión de Obras Públicas</Typography>
       </Box>
       <Divider />
 
-      <List dense>
+      <List dense sx={{ pt: 1 }}>
         {commonItems.map((item) => (
           <ListItem key={item.text} button onClick={() => navigate(item.path)} sx={menuItemStyle(item.path)}>
-            <ListItemIcon sx={{ color: 'inherit', minWidth: 36 }}>{item.icon}</ListItemIcon>
-            <ListItemText primary={item.text} />
+            <ListItemIcon sx={{ color: 'inherit', minWidth: 36, fontSize: '1.1rem' }}>{item.icon}</ListItemIcon>
+            <ListItemText primary={item.text} primaryTypographyProps={{ fontSize: '0.82rem', fontWeight: 500 }} />
           </ListItem>
         ))}
       </List>
@@ -84,19 +95,22 @@ const UnitSidebar = ({ unidades, selectedUnidad, setSelectedUnidad, onLogout }) 
               button
               onClick={() => toggleUnit(unit.codigo)}
               sx={{
-                bgcolor: isExpanded ? `${unit.color}15` : 'transparent',
-                '&:hover': { bgcolor: `${unit.color}15` },
-                borderRadius: 1,
+                bgcolor: isExpanded ? `${unit.color}10` : 'transparent',
+                '&:hover': { bgcolor: `${unit.color}12` },
+                borderRadius: 1.5,
                 mx: 1,
-                my: 0.5,
+                my: 0.3,
               }}
             >
               <ListItemIcon sx={{ color: unit.color, minWidth: 36 }}>
-                <UnitIcon />
+                <UnitIcon sx={{ fontSize: 20 }} />
               </ListItemIcon>
-              <ListItemText primary={unit.codigo} secondary={unit.nombre}
-                primaryTypographyProps={{ fontWeight: 700, fontSize: '0.85rem', color: unit.color }}
-                secondaryTypographyProps={{ fontSize: '0.7rem', color: 'text.secondary' }} />
+              <ListItemText
+                primary={unit.codigo}
+                secondary={unit.nombre}
+                primaryTypographyProps={{ fontWeight: 700, fontSize: '0.82rem', color: unit.color }}
+                secondaryTypographyProps={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)' }}
+              />
               <IconButton size="small" sx={{ color: unit.color }}>
                 {isExpanded ? <ExpandLess /> : <ExpandMore />}
               </IconButton>
@@ -112,20 +126,23 @@ const UnitSidebar = ({ unidades, selectedUnidad, setSelectedUnidad, onLogout }) 
                       button
                       onClick={() => navigate(itemPath)}
                       sx={{
-                        pl: 4,
-                        bgcolor: isActive(itemPath) ? `${unit.color}25` : 'transparent',
-                        color: isActive(itemPath) ? unit.color : 'inherit',
-                        '&:hover': { bgcolor: `${unit.color}15`, color: unit.color },
-                        borderRadius: 1,
+                        pl: 4.5,
+                        bgcolor: isActive(itemPath) ? `${unit.color}18` : 'transparent',
+                        color: isActive(itemPath) ? unit.color : 'rgba(255,255,255,0.55)',
+                        '&:hover': { bgcolor: `${unit.color}10`, color: unit.color },
+                        borderRadius: 1.5,
                         mx: 1,
-                        mb: 0.5,
+                        mb: 0.2,
                         fontSize: '0.8rem',
                       }}
                     >
-                      <ListItemIcon sx={{ color: 'inherit', minWidth: 30 }}>
-                        <ItemIcon fontSize="small" />
+                      <ListItemIcon sx={{ color: 'inherit', minWidth: 28 }}>
+                        <ItemIcon sx={{ fontSize: 16 }} />
                       </ListItemIcon>
-                      <ListItemText primary={item.label} />
+                      <ListItemText
+                        primary={item.label}
+                        primaryTypographyProps={{ fontSize: '0.78rem' }}
+                      />
                     </ListItem>
                   );
                 })}
@@ -139,11 +156,11 @@ const UnitSidebar = ({ unidades, selectedUnidad, setSelectedUnidad, onLogout }) 
 
       {adminItems.length > 0 && (
         <>
-          <List dense>
+          <List dense sx={{ pt: 0.5 }}>
             {adminItems.map((item) => (
               <ListItem key={item.text} button onClick={() => navigate(item.path)} sx={menuItemStyle(item.path)}>
                 <ListItemIcon sx={{ color: 'inherit', minWidth: 36 }}>{item.icon}</ListItemIcon>
-                <ListItemText primary={item.text} />
+                <ListItemText primary={item.text} primaryTypographyProps={{ fontSize: '0.82rem', fontWeight: 500 }} />
               </ListItem>
             ))}
           </List>
@@ -151,14 +168,15 @@ const UnitSidebar = ({ unidades, selectedUnidad, setSelectedUnidad, onLogout }) 
         </>
       )}
 
-      <List dense>
+      <List dense sx={{ pt: 0.5 }}>
         <ListItem button onClick={() => navigate('/feedback')} sx={menuItemStyle('/feedback')}>
           <ListItemIcon sx={{ color: 'inherit', minWidth: 36 }}><FeedbackIcon /></ListItemIcon>
-          <ListItemText primary="Feedback" />
+          <ListItemText primary="Feedback" primaryTypographyProps={{ fontSize: '0.82rem', fontWeight: 500 }} />
         </ListItem>
-        <ListItem button onClick={onLogout} sx={{ ...menuItemStyle(''), color: 'error.main', '&:hover': { bgcolor: 'error.light', color: 'white' } }}>
+        <ListItem button onClick={onLogout}
+          sx={{ ...menuItemStyle(''), color: 'rgba(255,100,100,0.7)', '&:hover': { bgcolor: 'rgba(255,80,80,0.12)', color: 'rgba(255,120,120,0.9)' } }}>
           <ListItemIcon sx={{ color: 'inherit', minWidth: 36 }}><LogoutIcon /></ListItemIcon>
-          <ListItemText primary="Cerrar Sesión" />
+          <ListItemText primary="Cerrar Sesión" primaryTypographyProps={{ fontSize: '0.82rem', fontWeight: 500 }} />
         </ListItem>
       </List>
     </Box>

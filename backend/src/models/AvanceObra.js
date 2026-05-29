@@ -54,6 +54,7 @@ const avanceObraSchema = new mongoose.Schema({
   registradoPor: { type: mongoose.Schema.Types.ObjectId, ref: 'Usuario' },
   aprobadoPor: { type: mongoose.Schema.Types.ObjectId, ref: 'Usuario' },
   fechaAprobacion: Date,
+  codigoVerificacion: { type: String, unique: true, sparse: true },
   estado: {
     type: String,
     enum: ['BORRADOR', 'ENVIADO', 'APROBADO', 'OBSERVADO'],

@@ -55,21 +55,25 @@ const MainLayout = () => {
           <IconButton edge="start" color="inherit" onClick={handleDrawerToggle} sx={{ mr: 2, display: { sm: 'none' } }}>
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>SDOP - Gestión de Obras Públicas</Typography>
+          <Typography variant="h6" sx={{ flexGrow: 1, color: 'rgba(255,255,255,0.9)' }}>
+            SDOP - Gestión de Obras Públicas
+          </Typography>
           <IconButton color="inherit" onClick={handleMenuOpen}>
-            <Avatar sx={{ width: 32, height: 32, bgcolor: 'secondary.main' }}>
+            <Avatar sx={{ width: 32, height: 32, bgcolor: 'rgba(255,180,0,0.3)', color: 'rgba(255,200,0,0.9)', fontSize: '0.85rem', fontWeight: 700 }}>
               {user?.nombre?.charAt(0)}
             </Avatar>
           </IconButton>
           <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
-            <MenuItem disabled>{user?.nombre}</MenuItem>
-            <MenuItem disabled sx={{ opacity: 0.7 }}>{user?.email}</MenuItem>
-            <MenuItem disabled sx={{ opacity: 0.7 }}>{user?.rol}</MenuItem>
+            <MenuItem disabled sx={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>{user?.nombre}</MenuItem>
+            <MenuItem disabled sx={{ opacity: 0.6, color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem' }}>{user?.email}</MenuItem>
+            <MenuItem disabled sx={{ opacity: 0.6, color: 'rgba(150,200,255,0.6)', fontSize: '0.8rem' }}>{user?.rol}</MenuItem>
             <Divider />
             <MenuItem onClick={() => { handleMenuClose(); navigate('/feedback'); }}>
-              <FeedbackIcon sx={{ mr: 1 }} fontSize="small" /> Feedback
+              <FeedbackIcon sx={{ mr: 1.5, fontSize: 18 }} /> Feedback
             </MenuItem>
-            <MenuItem onClick={handleLogout}><LogoutIcon sx={{ mr: 1 }} fontSize="small" /> Cerrar Sesión</MenuItem>
+            <MenuItem onClick={handleLogout}>
+              <LogoutIcon sx={{ mr: 1.5, fontSize: 18 }} /> Cerrar Sesión
+            </MenuItem>
           </Menu>
         </Toolbar>
       </AppBar>
@@ -82,7 +86,7 @@ const MainLayout = () => {
           {drawer}
         </Drawer>
       </Box>
-      <Box component="main" sx={{ flexGrow: 1, p: 3, width: { sm: `calc(100% - ${drawerWidth}px)` }, mt: 8 }}>
+      <Box component="main" sx={{ flexGrow: 1, p: { xs: 2, md: 3 }, width: { sm: `calc(100% - ${drawerWidth}px)` }, mt: 8, minHeight: 'calc(100vh - 64px)' }}>
         <Outlet context={{ selectedUnidad }} />
       </Box>
       <FeedbackButton />

@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const crypto = require('crypto');
 const multer = require('multer');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const cloudinary = require('../config/cloudinary');
@@ -109,10 +110,18 @@ router.post('/', authMiddleware, requirePermission('avances', 'create'), async (
     const count = await AvanceObra.countDocuments({ proyectoId });
     const numeroReporte = `AV-${year}-${String(proyecto.codigoInterno).slice(-3).padStart(3, '0')}-${String(count + 1).padStart(3, '0')}`;
 
+    const codigoVerificacion = crypto
+      .createHash('sha256')
+      .update(numeroReporte + proyectoId + Date.now().toString())
+      .digest('hex')
+      .substring(0, 12)
+      .toUpperCase();
+
     const avance = await AvanceObra.create({
       ...avanceData,
       proyectoId,
       numeroReporte,
+      codigoVerificacion,
       fotos: fotos || [],
       registradoPor: req.usuario._id,
       estado: 'ENVIADO',
