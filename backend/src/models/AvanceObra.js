@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const avanceObraSchema = new mongoose.Schema({
   proyectoId: { type: mongoose.Schema.Types.ObjectId, ref: 'Proyecto', required: true },
-  numeroReporte: { type: String, required: true, unique: true },
+  numeroReporte: { type: String, required: true },
   fechaReporte: { type: Date, default: Date.now },
   avanceFisicoParcial: { type: Number, required: true },
   avanceFisicoAcumulado: { type: Number, required: true },
@@ -62,5 +62,8 @@ const avanceObraSchema = new mongoose.Schema({
   },
   observacionesSupervisor: String,
 }, { timestamps: true });
+
+// Índice compuesto: único por proyecto, permite mismo numeroReporte en proyectos distintos
+avanceObraSchema.index({ proyectoId: 1, numeroReporte: 1 }, { unique: true });
 
 module.exports = mongoose.model('AvanceObra', avanceObraSchema);

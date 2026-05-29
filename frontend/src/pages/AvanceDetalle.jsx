@@ -7,7 +7,7 @@ import {
 } from '@mui/material';
 import {
   ArrowBack, CheckCircle, Warning, Cancel, GpsFixed, AccessTime,
-  Smartphone, CameraAlt, LocationOn,
+  Smartphone, CameraAlt, LocationOn, MyLocation,
 } from '@mui/icons-material';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -49,6 +49,12 @@ const glass = {
     border: '1px solid rgba(255,200,0,0.2)',
     fontWeight: 600,
   },
+  chipRechazado: {
+    bgcolor: 'rgba(255,80,80,0.15)',
+    color: 'rgba(255,100,100,0.9)',
+    border: '1px solid rgba(255,80,80,0.2)',
+    fontWeight: 600,
+  },
   btnApprove: {
     bgcolor: 'rgba(0,200,150,0.2)',
     color: 'rgba(0,220,180,0.95)',
@@ -62,6 +68,13 @@ const glass = {
     '&:hover': { bgcolor: 'rgba(255,80,80,0.35)' },
   },
 };
+
+function fmtLat(v) {
+  return v != null ? (v >= 0 ? `S ${Math.abs(v).toFixed(6)}°` : `N ${Math.abs(v).toFixed(6)}°`) : '—';
+}
+function fmtLng(v) {
+  return v != null ? (v >= 0 ? `E ${Math.abs(v).toFixed(6)}°` : `O ${Math.abs(v).toFixed(6)}°`) : '—';
+}
 
 const AvanceDetalle = () => {
   const { id } = useParams();
@@ -135,6 +148,19 @@ const AvanceDetalle = () => {
   const fechaStr = fechaReporte.toLocaleDateString('es-BO', { year: 'numeric', month: 'long', day: 'numeric' });
   const horaStr = fechaReporte.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' });
 
+  const coordProyecto = avance.proyectoId?.coordenadas?.lat && avance.proyectoId?.coordenadas?.lng
+    ? { lat: avance.proyectoId.coordenadas.lat, lng: avance.proyectoId.coordenadas.lng }
+    : null;
+
+  const ultimaFoto = avance.fotos?.length > 0 ? avance.fotos[avance.fotos.length - 1] : null;
+  const coordExif = ultimaFoto?.exif?.tieneGPS && ultimaFoto.exif.latitud != null && ultimaFoto.exif.longitud != null
+    ? { lat: ultimaFoto.exif.latitud, lng: ultimaFoto.exif.longitud }
+    : null;
+
+  const estadoVerificacion = ultimaFoto?.verificacion?.estado || null;
+  const distanciaObra = ultimaFoto?.verificacion?.distanciaObraMetros;
+  const radioAceptado = ultimaFoto?.verificacion?.radioAceptadoMetros || 500;
+
   return (
     <VerificationReportLayout
       mode="detalle"
@@ -151,6 +177,132 @@ const AvanceDetalle = () => {
       {error && !dialogOpen && <Alert severity="error" sx={{ mb: 2, bgcolor: 'rgba(255,50,50,0.1)', color: 'rgba(255,100,100,0.9)', '& .MuiAlert-icon': { color: 'rgba(255,100,100,0.8)' } }}>{error}</Alert>}
 
       <Grid container spacing={2}>
+        {/* ===== GPS INFO PANEL (prominent) ===== */}
+        {(coordProyecto || coordExif) && (
+          <Grid item xs={12}>
+            <Card sx={glass.card}>
+              <CardContent sx={{ p: { xs: 1.5, md: 2 }, '&:last-child': { pb: { xs: 1.5, md: 2 } } }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                  <MyLocation sx={{ fontSize: 18, color: '#5b9aff' }} />
+                  <Typography sx={{ color: 'rgba(150,220,255,0.85)', fontWeight: 700, fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    Geolocalización del Avance
+                  </Typography>
+                  {estadoVerificacion && (
+                    <Chip
+                      label={estadoVerificacion}
+                      size="small"
+                      sx={
+                        estadoVerificacion === 'VERIFICADO' ? glass.chipVerificado :
+                        estadoVerificacion === 'SOSPECHOSO' ? glass.chipSospechoso :
+                        glass.chipRechazado
+                      }
+                    />
+                  )}
+                </Box>
+
+                <Grid container spacing={2}>
+                  {/* EXIF GPS */}
+                  <Grid item xs={12} sm={6}>
+                    <Box sx={{ p: 1.5, bgcolor: coordExif ? 'rgba(0,219,180,0.06)' : 'rgba(255,255,255,0.02)', borderRadius: 2, border: `1px solid ${coordExif ? 'rgba(0,219,180,0.1)' : 'rgba(255,255,255,0.05)'}` }}>
+                      <Typography sx={{ color: 'rgba(150,200,255,0.5)', fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.5, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <CameraAlt sx={{ fontSize: 12 }} /> GPS de la Foto (EXIF)
+                      </Typography>
+                      {coordExif ? (
+                        <>
+                          <Typography sx={{ color: 'rgba(255,255,255,0.95)', fontWeight: 600, fontSize: '0.95rem', fontFamily: 'monospace' }}>
+                            {fmtLat(ultimaFoto.exif.latitud)}, {fmtLng(ultimaFoto.exif.longitud)}
+                          </Typography>
+                          <Box sx={{ display: 'flex', gap: 2, mt: 0.3 }}>
+                            {ultimaFoto.exif.altitud != null && (
+                              <Typography sx={{ color: 'rgba(150,200,255,0.5)', fontSize: '0.65rem' }}>
+                                Altitud: <strong style={{ color: 'rgba(255,255,255,0.7)' }}>{Math.round(ultimaFoto.exif.altitud)}m</strong>
+                              </Typography>
+                            )}
+                            {ultimaFoto.exif.dispositivo && (
+                              <Typography sx={{ color: 'rgba(150,200,255,0.5)', fontSize: '0.65rem' }}>
+                                {ultimaFoto.exif.dispositivo} {ultimaFoto.exif.modeloCamara}
+                              </Typography>
+                            )}
+                          </Box>
+                        </>
+                      ) : (
+                        <Typography sx={{ color: 'rgba(255,200,0,0.6)', fontSize: '0.75rem', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <Warning sx={{ fontSize: 14 }} /> Sin datos GPS en la foto
+                        </Typography>
+                      )}
+                    </Box>
+                  </Grid>
+
+                  {/* Project coordinates */}
+                  <Grid item xs={12} sm={6}>
+                    <Box sx={{ p: 1.5, bgcolor: 'rgba(91,154,255,0.06)', borderRadius: 2, border: '1px solid rgba(91,154,255,0.1)' }}>
+                      <Typography sx={{ color: 'rgba(150,200,255,0.5)', fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.5, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <LocationOn sx={{ fontSize: 12 }} /> Ubicación del Proyecto
+                      </Typography>
+                      {coordProyecto ? (
+                        <Typography sx={{ color: 'rgba(255,255,255,0.95)', fontWeight: 600, fontSize: '0.95rem', fontFamily: 'monospace' }}>
+                          {fmtLat(coordProyecto.lat)}, {fmtLng(coordProyecto.lng)}
+                        </Typography>
+                      ) : (
+                        <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', fontStyle: 'italic' }}>
+                          Sin coordenadas registradas
+                        </Typography>
+                      )}
+                    </Box>
+                  </Grid>
+                </Grid>
+
+                {/* Distance bar */}
+                {distanciaObra != null && coordProyecto && (
+                  <Box sx={{
+                    mt: 1.5, p: 1.5,
+                    bgcolor: estadoVerificacion === 'VERIFICADO' ? 'rgba(0,219,180,0.06)' : 'rgba(255,180,0,0.06)',
+                    borderRadius: 2,
+                    border: `1px solid ${estadoVerificacion === 'VERIFICADO' ? 'rgba(0,219,180,0.12)' : 'rgba(255,180,0,0.12)'}`,
+                  }}>
+                    <Grid container spacing={2} alignItems="center">
+                      <Grid item xs={12} sm={4}>
+                        <Typography sx={{ color: 'rgba(150,200,255,0.5)', fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.3 }}>
+                          Proyecto
+                        </Typography>
+                        <Typography sx={{ color: 'rgba(255,255,255,0.85)', fontWeight: 500, fontSize: '0.8rem', fontFamily: 'monospace' }}>
+                          {fmtLat(coordProyecto.lat)}, {fmtLng(coordProyecto.lng)}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} sm={4} sx={{ textAlign: 'center' }}>
+                        <Typography sx={{ color: 'rgba(150,200,255,0.5)', fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.3 }}>
+                          Distancia
+                        </Typography>
+                        <Typography sx={{
+                          fontWeight: 800,
+                          fontSize: '1.3rem',
+                          fontFamily: 'monospace',
+                          color: estadoVerificacion === 'VERIFICADO' ? '#00dbb4' : '#ffb300',
+                        }}>
+                          {distanciaObra}m
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} sm={4} sx={{ textAlign: 'right' }}>
+                        <Typography sx={{ color: 'rgba(150,200,255,0.5)', fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.3 }}>
+                          Radio permitido
+                        </Typography>
+                        <Typography sx={{ color: 'rgba(150,200,255,0.7)', fontWeight: 600, fontSize: '0.85rem' }}>
+                          {radioAceptado}m
+                        </Typography>
+                      </Grid>
+                    </Grid>
+                    {ultimaFoto?.verificacion?.observaciones && (
+                      <Typography sx={{ color: 'rgba(150,200,255,0.4)', fontSize: '0.65rem', fontStyle: 'italic', mt: 1, textAlign: 'center' }}>
+                        {ultimaFoto.verificacion.observaciones}
+                      </Typography>
+                    )}
+                  </Box>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
+
         {/* Info */}
         <Grid item xs={12} md={6}>
           <Card sx={glass.card}>
@@ -267,7 +419,11 @@ const AvanceDetalle = () => {
                         <Box sx={{ px: 1, py: 0.8 }}>
                           <Box sx={{ display: 'flex', gap: 0.5, mb: 0.8, flexWrap: 'wrap' }}>
                             <Chip label={foto.verificacion?.estado || 'PENDIENTE'} size="small"
-                              sx={foto.verificacion?.estado === 'VERIFICADO' ? glass.chipVerificado : glass.chipSospechoso} />
+                              sx={
+                                foto.verificacion?.estado === 'VERIFICADO' ? glass.chipVerificado :
+                                foto.verificacion?.estado === 'SOSPECHOSO' ? glass.chipSospechoso :
+                                glass.chipRechazado
+                              } />
                             <Chip label={foto.categoria || 'VISTA_GENERAL'} size="small"
                               sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: 'rgba(150,200,255,0.6)', border: '1px solid rgba(255,255,255,0.08)', fontSize: '0.6rem' }} />
                           </Box>

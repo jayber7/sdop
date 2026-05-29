@@ -108,7 +108,8 @@ router.post('/', authMiddleware, requirePermission('avances', 'create'), async (
 
     const year = new Date().getFullYear();
     const count = await AvanceObra.countDocuments({ proyectoId });
-    const numeroReporte = `AV-${year}-${String(proyecto.codigoInterno).slice(-3).padStart(3, '0')}-${String(count + 1).padStart(3, '0')}`;
+    const codigoPart = String(proyecto.codigoInterno).replace(/\s+/g, '').slice(-8).padStart(8, '0');
+    const numeroReporte = `AV-${year}-${codigoPart}-${String(count + 1).padStart(3, '0')}`;
 
     const codigoVerificacion = crypto
       .createHash('sha256')
