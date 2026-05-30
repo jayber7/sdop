@@ -134,6 +134,63 @@ router.post('/', authMiddleware, requirePermission('avances', 'create'), async (
   }
 });
 
+// AGREGAR FOTO A AVANCE EXISTENTE
+// ELIMINAR FOTO DE AVANCE
+router.delete('/:id/fotos/:fotoId', authMiddleware, requirePermission('avances', 'update'), async (req, res) => {
+  try {
+    const avance = await AvanceObra.findById(req.params.id);
+    if (!avance) return res.status(404).json({ status: 'error', message: 'Avance no encontrado' });
+    if (avance.estado === 'APROBADO') {
+      return res.status(400).json({ status: 'error', message: 'No se pueden eliminar fotos de un avance aprobado' });
+    }
+
+    const foto = avance.fotos.id(req.params.fotoId);
+    if (!foto) return res.status(404).json({ status: 'error', message: 'Foto no encontrada' });
+
+    // Eliminar de Cloudinary
+    if (foto.publicId) {
+      await cloudinary.uploader.destroy(foto.publicId).catch(() => {});
+    }
+
+    foto.deleteOne();
+    await avance.save();
+
+    res.json({ status: 'success', data: avance });
+  } catch (error) {
+    res.status(400).json({ status: 'error', message: error.message });
+  }
+});
+
+// AGREGAR FOTO A AVANCE EXISTENTE
+router.put('/:id/fotos', authMiddleware, requirePermission('avances', 'update'), upload.single('foto'), extractExifMiddleware, geoVerificationMiddleware, async (req, res) => {
+  try {
+    const avance = await AvanceObra.findById(req.params.id);
+    if (!avance) return res.status(404).json({ status: 'error', message: 'Avance no encontrado' });
+    if (avance.estado === 'APROBADO') {
+      return res.status(400).json({ status: 'error', message: 'No se pueden agregar fotos a un avance aprobado' });
+    }
+    if (!req.file) {
+      return res.status(400).json({ status: 'error', message: 'No se recibió ninguna imagen' });
+    }
+
+    const fotoData = {
+      url: req.file.path,
+      publicId: req.file.filename,
+      exif: req.exifData || null,
+      verificacion: req.verificacion,
+      categoria: req.body.categoria || 'VISTA_GENERAL',
+      descripcion: req.body.descripcion || '',
+    };
+
+    avance.fotos.push(fotoData);
+    await avance.save();
+
+    res.json({ status: 'success', data: { avance, foto: fotoData } });
+  } catch (error) {
+    res.status(400).json({ status: 'error', message: error.message });
+  }
+});
+
 // ============================================================
 // RUTAS CON :id (deben ir AL FINAL)
 // ============================================================
@@ -158,6 +215,26 @@ router.put('/:id', authMiddleware, requirePermission('avances', 'update'), async
     const avance = await AvanceObra.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
     if (!avance) return res.status(404).json({ status: 'error', message: 'Avance no encontrado' });
     res.json({ status: 'success', data: avance });
+  } catch (error) {
+    res.status(400).json({ status: 'error', message: error.message });
+  }
+});
+
+// ELIMINAR AVANCE
+router.delete('/:id', authMiddleware, requirePermission('avances', 'delete'), async (req, res) => {
+  try {
+    const avance = await AvanceObra.findById(req.params.id);
+    if (!avance) return res.status(404).json({ status: 'error', message: 'Avance no encontrado' });
+
+    // Eliminar fotos de Cloudinary
+    if (avance.fotos?.length > 0) {
+      await Promise.allSettled(
+        avance.fotos.filter((f) => f.publicId).map((f) => cloudinary.uploader.destroy(f.publicId))
+      );
+    }
+
+    await AvanceObra.findByIdAndDelete(req.params.id);
+    res.json({ status: 'success', message: 'Avance eliminado correctamente' });
   } catch (error) {
     res.status(400).json({ status: 'error', message: error.message });
   }

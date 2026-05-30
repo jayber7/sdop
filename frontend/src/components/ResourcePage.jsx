@@ -186,9 +186,14 @@ const ResourcePage = ({ config, title }) => {
                 InputLabelProps={field.type === 'date' ? { shrink: true } : undefined}
                 select={field.type === 'select'}
               >
-                {field.type === 'select' && field.options?.map((opt) => (
-                  <MenuItem key={opt} value={opt}>{typeof opt === 'string' ? opt.replace(/_/g, ' ') : opt}</MenuItem>
-                ))}
+                {field.type === 'select' && (
+                  <>
+                    <MenuItem value="">Seleccionar...</MenuItem>
+                    {field.options?.map((opt) => (
+                      <MenuItem key={opt} value={opt}>{typeof opt === 'string' ? opt.replace(/_/g, ' ') : opt}</MenuItem>
+                    ))}
+                  </>
+                )}
               </TextField>
             ))}
           </Stack>

@@ -28,7 +28,7 @@ const extractExifMiddleware = async (req, res, next) => {
     }
 
     // Fallback: si Cloudinary eliminó el EXIF, usar datos enviados desde el frontend
-    if (!req.exifData && req.body.exifLat && req.body.exifLng) {
+    if ((!req.exifData || !req.exifData.tieneGPS) && req.body.exifLat && req.body.exifLng) {
       req.exifData = {
         latitud: parseFloat(req.body.exifLat),
         longitud: parseFloat(req.body.exifLng),

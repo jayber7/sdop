@@ -147,10 +147,11 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           '& .MuiInputBase-root': {
+            minHeight: '2.5em',
             background: 'rgba(255,255,255,0.04)',
             color: 'rgba(255,255,255,0.85)',
             borderRadius: 8,
-            '& fieldset': { border: '1px solid rgba(255,255,255,0.1)' },
+            '& fieldset': { border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 },
             '&:hover fieldset': { borderColor: 'rgba(100,180,255,0.3) !important' },
             '&.Mui-focused fieldset': { borderColor: 'rgba(100,180,255,0.5) !important' },
           },

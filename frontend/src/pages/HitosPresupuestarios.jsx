@@ -164,6 +164,7 @@ const HitosPresupuestarios = () => {
         <DialogContent>
           <TextField select fullWidth label="Proyecto *" size="small" sx={{ mb: 2, mt: 1 }} required
             value={formData.proyectoId} onChange={(e) => setFormData({ ...formData, proyectoId: e.target.value })}>
+            <MenuItem value="">Seleccionar proyecto...</MenuItem>
             {proyectos.map(p => <MenuItem key={p._id} value={p._id}>{p.nombre}</MenuItem>)}
           </TextField>
           <TextField fullWidth label="Nombre del Hito *" size="small" sx={{ mb: 2 }} required

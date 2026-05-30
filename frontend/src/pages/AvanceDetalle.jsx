@@ -1,14 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  Box, Typography, Card, CardContent, Grid, Chip, Button, LinearProgress,
+  Box, Typography, Card, CardContent, Grid, Chip, Button, IconButton, LinearProgress,
   Divider, Dialog, DialogTitle, DialogContent, Stack,
   DialogActions, TextField, Alert,
 } from '@mui/material';
 import {
   ArrowBack, CheckCircle, Warning, Cancel, GpsFixed, AccessTime,
-  Smartphone, CameraAlt, LocationOn, MyLocation,
+  Smartphone, CameraAlt, LocationOn, MyLocation, AddAPhoto, PhotoCamera, Upload, Delete,
 } from '@mui/icons-material';
+import exifr from 'exifr';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import VerificationReportLayout from '../components/VerificationReportLayout';
@@ -67,6 +68,13 @@ const glass = {
     border: '1px solid rgba(255,80,80,0.3)',
     '&:hover': { bgcolor: 'rgba(255,80,80,0.35)' },
   },
+  btnEvidence: {
+    bgcolor: 'rgba(0,150,255,0.15)',
+    color: 'rgba(150,220,255,0.9)',
+    border: '1px solid rgba(0,150,255,0.25)',
+    fontSize: '0.7rem',
+    '&:hover': { bgcolor: 'rgba(0,150,255,0.3)' },
+  },
 };
 
 function fmtLat(v) {
@@ -89,9 +97,107 @@ const AvanceDetalle = () => {
   const [success, setSuccess] = useState(null);
   const [error, setError] = useState(null);
 
+  // Evidencia extra
+  const cameraRef = useRef(null);
+  const fileRef = useRef(null);
+  const [gps, setGps] = useState(null);
+  const [gpsError, setGpsError] = useState(null);
+  const [uploadingEvidencia, setUploadingEvidencia] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
+  const [uploadSuccess, setUploadSuccess] = useState(null);
+  const [deletingFoto, setDeletingFoto] = useState(null);
+
   useEffect(() => {
     fetchAvance();
+    getCurrentLocation();
   }, [id]);
+
+  const getCurrentLocation = () => {
+    setGpsError(null);
+    if (!navigator.geolocation) {
+      setGpsError('Geolocalización no soportada');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setGps({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy }),
+      () => setGpsError('No se pudo obtener ubicación'),
+      { enableHighAccuracy: true, timeout: 15000 }
+    );
+  };
+
+  const handleCaptureEvidencia = async (e, isCamera) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadError(null);
+    setUploadSuccess(null);
+    setUploadingEvidencia(true);
+    try {
+      let exifData = null;
+      try { exifData = await exifr.parse(file, { gps: true }); } catch (e) {}
+      if (!exifData?.latitude) {
+        try { exifData = await exifr.gps(file); } catch (e) {}
+      }
+      if (!exifData?.latitude) {
+        try {
+          const buffer = await file.arrayBuffer();
+          const parsed = await exifr.parse(new Uint8Array(buffer), { gps: true, tiff: true, exif: true, makedata: true });
+          if (parsed?.latitude) exifData = parsed;
+        } catch (e) {}
+      }
+
+      // Normalizar desde formato exifr.gps() que usa timestamp
+      if (exifData?.timestamp && !exifData.DateTimeOriginal) {
+        exifData.DateTimeOriginal = new Date(exifData.timestamp);
+      }
+
+      const fd = new FormData();
+      fd.append('foto', file);
+      fd.append('categoria', 'VISTA_GENERAL');
+
+      if (gps) {
+        fd.append('browserGpsLat', gps.lat);
+        fd.append('browserGpsLng', gps.lng);
+      }
+
+      const coords = avance?.proyectoId?.coordenadas;
+      if (coords) {
+        fd.append('proyectoCoords', JSON.stringify(coords));
+      }
+
+      if (exifData) {
+        if (exifData.latitude) fd.append('exifLat', exifData.latitude.toString());
+        if (exifData.longitude) fd.append('exifLng', exifData.longitude.toString());
+        if (exifData.altitude) fd.append('exifAlt', exifData.altitude.toString());
+        if (exifData.DateTimeOriginal) fd.append('exifDate', exifData.DateTimeOriginal.toISOString());
+        if (exifData.Make) fd.append('exifMake', exifData.Make);
+        if (exifData.Model) fd.append('exifModel', exifData.Model);
+      }
+
+      await api.put(`/avances/${id}/fotos`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setUploadSuccess('Evidencia agregada correctamente');
+      fetchAvance();
+    } catch (err) {
+      setUploadError(err.response?.data?.message || 'Error al subir la foto');
+    } finally {
+      setUploadingEvidencia(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleDeleteFoto = async (fotoId) => {
+    setDeletingFoto(fotoId);
+    setUploadError(null);
+    setUploadSuccess(null);
+    try {
+      await api.delete(`/avances/${id}/fotos/${fotoId}`);
+      setUploadSuccess('Foto eliminada correctamente');
+      fetchAvance();
+    } catch (err) {
+      setUploadError(err.response?.data?.message || 'Error al eliminar la foto');
+    } finally {
+      setDeletingFoto(null);
+    }
+  };
 
   const fetchAvance = async () => {
     setLoading(true);
@@ -136,6 +242,7 @@ const AvanceDetalle = () => {
   };
 
   const canManage = user?.rol === 'ADMIN' || user?.rol === 'SUPERVISOR';
+  const canAddEvidence = (user?.rol === 'ADMIN' || user?.rol === 'INSPECTOR') && avance?.estado !== 'APROBADO';
 
   if (loading) return <Box sx={{ p: 3 }}><LinearProgress /></Box>;
   if (!avance) return <Box sx={{ p: 3 }}><Alert severity="error">Avance no encontrado</Alert></Box>;
@@ -226,9 +333,16 @@ const AvanceDetalle = () => {
                           </Box>
                         </>
                       ) : (
-                        <Typography sx={{ color: 'rgba(255,200,0,0.6)', fontSize: '0.75rem', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                          <Warning sx={{ fontSize: 14 }} /> Sin datos GPS en la foto
-                        </Typography>
+                        <Box>
+                          <Typography sx={{ color: 'rgba(255,200,0,0.6)', fontSize: '0.75rem', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <Warning sx={{ fontSize: 14 }} /> Sin datos GPS en la foto
+                          </Typography>
+                          {distanciaObra != null && (
+                            <Typography sx={{ color: 'rgba(255,200,0,0.4)', fontSize: '0.6rem', fontStyle: 'italic', mt: 0.5 }}>
+                              La foto no contenía metadatos GPS. La distancia se calculó con la ubicación del dispositivo al momento de la captura.
+                            </Typography>
+                          )}
+                        </Box>
                       )}
                     </Box>
                   </Grid>
@@ -271,7 +385,7 @@ const AvanceDetalle = () => {
                       </Grid>
                       <Grid item xs={12} sm={4} sx={{ textAlign: 'center' }}>
                         <Typography sx={{ color: 'rgba(150,200,255,0.5)', fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.3 }}>
-                          Distancia
+                          Distancia {ultimaFoto?.exif?.tieneGPS ? '(EXIF → Obra)' : '(GPS Navegador → Obra)'}
                         </Typography>
                         <Typography sx={{
                           fontWeight: 800,
@@ -281,6 +395,11 @@ const AvanceDetalle = () => {
                         }}>
                           {distanciaObra}m
                         </Typography>
+                        {ultimaFoto && !ultimaFoto.exif?.tieneGPS && (
+                          <Typography sx={{ color: 'rgba(255,200,0,0.4)', fontSize: '0.55rem', fontStyle: 'italic', mt: 0.5 }}>
+                            Basado en GPS del navegador — la foto no contiene metadatos GPS
+                          </Typography>
+                        )}
                       </Grid>
                       <Grid item xs={12} sm={4} sx={{ textAlign: 'right' }}>
                         <Typography sx={{ color: 'rgba(150,200,255,0.5)', fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.3 }}>
@@ -400,10 +519,46 @@ const AvanceDetalle = () => {
         <Grid item xs={12} md={6}>
           <Card sx={glass.card}>
             <CardContent sx={{ p: { xs: 1.5, md: 2 }, '&:last-child': { pb: { xs: 1.5, md: 2 } } }}>
-              <Typography sx={{ color: 'rgba(150,220,255,0.8)', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em', mb: 1.5 }}>
-                <CameraAlt sx={{ fontSize: 14, mr: 0.5, verticalAlign: 'middle' }} />
-                Evidencia Fotográfica ({avance.fotos?.length || 0})
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+                <Typography sx={{ color: 'rgba(150,220,255,0.8)', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <CameraAlt sx={{ fontSize: 14 }} />
+                  Evidencia Fotográfica ({avance.fotos?.length || 0})
+                </Typography>
+                {canAddEvidence && (
+                  <>
+                    <input type="file" accept="image/*" capture="environment" ref={cameraRef}
+                      style={{ display: 'none' }} onChange={(e) => handleCaptureEvidencia(e, true)} />
+                    <input type="file" accept="image/*" ref={fileRef}
+                      style={{ display: 'none' }} onChange={(e) => handleCaptureEvidencia(e, false)} />
+                    <Box sx={{ display: 'flex', gap: 0.5 }}>
+                      <Button size="small" sx={glass.btnEvidence}
+                        startIcon={<PhotoCamera sx={{ fontSize: 14 }} />}
+                        onClick={() => cameraRef.current.click()}>
+                        Cámara
+                      </Button>
+                      <Button size="small" sx={glass.btnEvidence}
+                        startIcon={<Upload sx={{ fontSize: 14 }} />}
+                        onClick={() => fileRef.current.click()}>
+                        Adjuntar
+                      </Button>
+                    </Box>
+                  </>
+                )}
+              </Box>
+
+              {uploadingEvidencia && (
+                <LinearProgress sx={{ mb: 1.5, bgcolor: 'rgba(255,255,255,0.05)', '& .MuiLinearProgress-bar': { bgcolor: 'rgba(0,150,255,0.6)' } }} />
+              )}
+              {uploadSuccess && (
+                <Alert severity="success" sx={{ mb: 1.5, bgcolor: 'rgba(0,200,150,0.12)', color: 'rgba(0,220,180,0.9)', py: 0.3, '& .MuiAlert-icon': { fontSize: 14, color: 'rgba(0,220,180,0.8)' } }}>
+                  {uploadSuccess}
+                </Alert>
+              )}
+              {uploadError && (
+                <Alert severity="error" sx={{ mb: 1.5, bgcolor: 'rgba(255,50,50,0.1)', color: 'rgba(255,100,100,0.9)', py: 0.3, '& .MuiAlert-icon': { fontSize: 14, color: 'rgba(255,100,100,0.8)' } }}>
+                  {uploadError}
+                </Alert>
+              )}
 
               {!avance.fotos || avance.fotos.length === 0 ? (
                 <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.8rem', textAlign: 'center', py: 4 }}>
@@ -413,9 +568,20 @@ const AvanceDetalle = () => {
                 <Box sx={{ maxHeight: 400, overflow: 'auto', '&::-webkit-scrollbar': { width: 3 }, '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255,255,255,0.1)', borderRadius: 2 } }}>
                   <Stack spacing={1.5}>
                     {avance.fotos.map((foto, i) => (
-                      <Card key={i} sx={{ bgcolor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 1.5, overflow: 'hidden' }}>
-                        <img src={foto.url} alt={`Foto ${i + 1}`}
-                          style={{ width: '100%', height: 180, objectFit: 'cover', display: 'block' }} />
+                      <Card key={foto._id || i} sx={{ bgcolor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 1.5, overflow: 'hidden' }}>
+                        <Box sx={{ position: 'relative' }}>
+                          <img src={foto.url} alt={`Foto ${i + 1}`}
+                            style={{ width: '100%', height: 180, objectFit: 'cover', display: 'block' }} />
+                          {canAddEvidence && (
+                            <IconButton size="small" onClick={() => handleDeleteFoto(foto._id)}
+                              disabled={deletingFoto === foto._id}
+                              sx={{ position: 'absolute', top: 6, right: 6, bgcolor: 'rgba(0,0,0,0.5)', '&:hover': { bgcolor: 'rgba(255,0,0,0.4)' } }}>
+                              {deletingFoto === foto._id
+                                ? <LinearProgress sx={{ width: 14, height: 14, bgcolor: 'transparent', '& .MuiLinearProgress-bar': { bgcolor: 'rgba(255,255,255,0.5)' } }} />
+                                : <Delete sx={{ fontSize: 16, color: 'rgba(255,255,255,0.7)' }} />}
+                            </IconButton>
+                          )}
+                        </Box>
                         <Box sx={{ px: 1, py: 0.8 }}>
                           <Box sx={{ display: 'flex', gap: 0.5, mb: 0.8, flexWrap: 'wrap' }}>
                             <Chip label={foto.verificacion?.estado || 'PENDIENTE'} size="small"

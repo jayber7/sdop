@@ -197,8 +197,25 @@ const RegistrarAvance = () => {
 
       let exifData = null;
       try {
-        exifData = await exifr.parse(file);
+        exifData = await exifr.parse(file, { gps: true });
       } catch (e) {}
+      if (!exifData?.latitude) {
+        try {
+          exifData = await exifr.gps(file);
+        } catch (e) {}
+      }
+      if (!exifData?.latitude) {
+        try {
+          const buffer = await file.arrayBuffer();
+          const parsed = await exifr.parse(new Uint8Array(buffer), { gps: true, tiff: true, exif: true, makedata: true });
+          if (parsed?.latitude) exifData = parsed;
+        } catch (e) {}
+      }
+
+      // Normalizar desde formato exifr.gps() que usa timestamp
+      if (exifData?.timestamp && !exifData.DateTimeOriginal) {
+        exifData.DateTimeOriginal = new Date(exifData.timestamp);
+      }
 
       const fd = new FormData();
       fd.append('foto', file);
@@ -435,9 +452,21 @@ const RegistrarAvance = () => {
                       </Box>
                     </>
                   ) : ultimaFoto ? (
-                    <Typography sx={{ color: 'rgba(255,200,0,0.6)', fontSize: '0.75rem', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <Warning sx={{ fontSize: 14 }} /> Sin datos GPS en la foto
-                    </Typography>
+                    <Box>
+                      <Typography sx={{ color: 'rgba(255,200,0,0.6)', fontSize: '0.75rem', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Warning sx={{ fontSize: 14 }} /> Sin datos GPS en la foto
+                      </Typography>
+                      {coordBrowser && (
+                        <Box sx={{ mt: 0.5, pt: 0.5, borderTop: '1px solid rgba(255,180,0,0.15)' }}>
+                          <Typography sx={{ color: 'rgba(255,200,0,0.5)', fontSize: '0.55rem', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                            <GpsFixed sx={{ fontSize: 10 }} /> GPS asignado desde navegador como referencia:
+                          </Typography>
+                          <Typography sx={{ color: 'rgba(255,255,255,0.6)', fontWeight: 500, fontSize: '0.8rem', fontFamily: 'monospace' }}>
+                            {fmtLat(gps.lat)}, {fmtLng(gps.lng)}
+                          </Typography>
+                        </Box>
+                      )}
+                    </Box>
                   ) : (
                     <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', fontStyle: 'italic' }}>
                       Capture o adjunte una foto
@@ -467,7 +496,7 @@ const RegistrarAvance = () => {
                   </Grid>
                   <Grid item xs={12} sm={4} sx={{ textAlign: 'center' }}>
                     <Typography sx={{ color: 'rgba(150,200,255,0.5)', fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.3 }}>
-                      Distancia
+                      Distancia {coordExif ? '(EXIF → Obra)' : coordBrowser ? '(GPS Navegador → Obra)' : ''}
                     </Typography>
                     <Typography sx={{
                       fontWeight: 800,
@@ -477,6 +506,11 @@ const RegistrarAvance = () => {
                     }}>
                       {distanciaBrowserProyecto != null ? `${distanciaBrowserProyecto}m` : distanciaExifProyecto != null ? `${distanciaExifProyecto}m` : '—'}
                     </Typography>
+                    {!coordExif && coordBrowser && (
+                      <Typography sx={{ color: 'rgba(255,200,0,0.4)', fontSize: '0.55rem', fontStyle: 'italic', mt: 0.5 }}>
+                        Basado en GPS del navegador — la foto no contiene metadatos GPS
+                      </Typography>
+                    )}
                   </Grid>
                   <Grid item xs={12} sm={4} sx={{ textAlign: 'right' }}>
                     <Typography sx={{ color: 'rgba(150,200,255,0.5)', fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.3 }}>
