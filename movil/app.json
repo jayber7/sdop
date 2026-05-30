@@ -1,0 +1,62 @@
+{
+  "expo": {
+    "name": "sdopmovil",
+    "slug": "sdop",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Para tomar fotos de avance de obra",
+        "NSPhotoLibraryUsageDescription": "Para adjuntar fotos de avance",
+        "NSLocationWhenInUseUsageDescription": "Para verificar ubicación de la obra",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "bundleIdentifier": "com.anonymous.sdopmovil"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#121212",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.anonymous.sdopmovil"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Para adjuntar fotos de avance de obra",
+          "cameraPermission": "Para tomar fotos de avance de obra"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Para verificar ubicación de la obra",
+          "locationWhenInUsePermission": "Para verificar ubicación de la obra"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "2abdf197-a104-4958-9449-5205ccb78986"
+      }
+    },
+    "owner": "hitdev07"
+  }
+}
