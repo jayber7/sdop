@@ -77,6 +77,12 @@ const glass = {
   },
 };
 
+const fmtExifVal = (v) => {
+  if (v == null) return '?';
+  if (v instanceof Date) return v.toISOString().replace('T', ' ').split('.')[0];
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+};
 function fmtLat(v) {
   return v != null ? (v >= 0 ? `S ${Math.abs(v).toFixed(6)}°` : `N ${Math.abs(v).toFixed(6)}°`) : '—';
 }
@@ -586,7 +592,7 @@ const AvanceDetalle = () => {
                       <Box sx={{ p: 0.8, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: 0.5 }}>
                         <Typography sx={{ color: 'rgba(150,200,255,0.4)', fontSize: '0.5rem', textTransform: 'uppercase' }}>📱 Dispositivo</Typography>
                         <Typography sx={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600, fontSize: '0.6rem', mt: 0.2, fontFamily: 'monospace' }}>
-                          {(rawExif.Make || '?')} {(rawExif.Model || '')}
+                          {fmtExifVal(rawExif.Make)} {fmtExifVal(rawExif.Model)}
                         </Typography>
                       </Box>
                     </Grid>
@@ -594,7 +600,7 @@ const AvanceDetalle = () => {
                       <Box sx={{ p: 0.8, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: 0.5 }}>
                         <Typography sx={{ color: 'rgba(150,200,255,0.4)', fontSize: '0.5rem', textTransform: 'uppercase' }}>📅 Fecha toma</Typography>
                         <Typography sx={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600, fontSize: '0.55rem', mt: 0.2, fontFamily: 'monospace' }}>
-                          {rawExif.DateTimeOriginal || rawExif.DateTimeDigitized || '?'}
+                          {fmtExifVal(rawExif.DateTimeOriginal || rawExif.DateTimeDigitized)}
                         </Typography>
                       </Box>
                     </Grid>
@@ -603,7 +609,7 @@ const AvanceDetalle = () => {
                         <Box sx={{ p: 0.8, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: 0.5 }}>
                           <Typography sx={{ color: 'rgba(150,200,255,0.4)', fontSize: '0.5rem', textTransform: 'uppercase' }}>📐 Resolución</Typography>
                           <Typography sx={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600, fontSize: '0.55rem', mt: 0.2, fontFamily: 'monospace' }}>
-                            {rawExif.ImageWidth}×{rawExif.ImageLength}
+                            {fmtExifVal(rawExif.ImageWidth)}×{fmtExifVal(rawExif.ImageLength)}
                           </Typography>
                         </Box>
                       </Grid>

@@ -25,6 +25,13 @@ function haversineDistance(coord1, coord2) {
   return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 }
 
+const fmtExifVal = (v) => {
+  if (v == null) return '?';
+  if (v instanceof Date) return v.toISOString().replace('T', ' ').split('.')[0];
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+};
+
 const RegistrarAvanceScreen = ({ route, navigation }) => {
   const { proyecto } = route.params;
   const [location, setLocation] = useState(null);
@@ -328,16 +335,16 @@ const RegistrarAvanceScreen = ({ route, navigation }) => {
               )}
               <View style={styles.exifRow}>
                 <Text style={styles.exifLabel}>📱 Dispositivo</Text>
-                <Text style={styles.exifValue}>{(rawExif.Make || '?')} {(rawExif.Model || '')}</Text>
+                <Text style={styles.exifValue}>{fmtExifVal(rawExif.Make)} {fmtExifVal(rawExif.Model)}</Text>
               </View>
               <View style={styles.exifRow}>
                 <Text style={styles.exifLabel}>📅 Fecha toma</Text>
-                <Text style={styles.exifValue}>{rawExif.DateTimeOriginal || rawExif.DateTimeDigitized || '?'}</Text>
+                <Text style={styles.exifValue}>{fmtExifVal(rawExif.DateTimeOriginal || rawExif.DateTimeDigitized)}</Text>
               </View>
               {rawExif.ImageWidth && rawExif.ImageLength && (
                 <View style={styles.exifRow}>
                   <Text style={styles.exifLabel}>📐 Resolución</Text>
-                  <Text style={styles.exifValue}>{rawExif.ImageWidth} × {rawExif.ImageLength}</Text>
+                  <Text style={styles.exifValue}>{fmtExifVal(rawExif.ImageWidth)} × {fmtExifVal(rawExif.ImageLength)}</Text>
                 </View>
               )}
             </View>
