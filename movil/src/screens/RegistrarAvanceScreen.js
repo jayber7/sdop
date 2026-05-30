@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../theme';
 import api from '../api';
 import GpsInfoPanel from '../components/GpsInfoPanel';
@@ -32,6 +33,8 @@ const RegistrarAvanceScreen = ({ route, navigation }) => {
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [gpsAlert, setGpsAlert] = useState({ visible: false, mensajes: [], pending: null });
+  const [rawExif, setRawExif] = useState(null);
+  const [exifOpen, setExifOpen] = useState(false);
   const [form, setForm] = useState({
     avanceFisicoParcial: '', avanceFisicoAcumulado: '',
     avanceFinancieroParcial: '', avanceFinancieroAcumulado: '',
@@ -101,21 +104,17 @@ const RegistrarAvanceScreen = ({ route, navigation }) => {
 
   const capturarFoto = async (desdeCamara) => {
     try {
-      const options = {
-        exif: true,
-        quality: 0.8,
-      };
-
+      const options = { exif: true, quality: 0.8 };
       const result = desdeCamara
         ? await ImagePicker.launchCameraAsync(options)
         : await ImagePicker.launchImageLibraryAsync(options);
-
       if (result.canceled) return;
 
       const asset = result.assets[0];
       setUploading(true);
+      setRawExif(asset.exif || {});
+      setExifOpen(false);
 
-      // Extraer EXIF nativo (ES REAL en Expo para Android)
       const exifNativo = asset.exif || {};
       const exifLat = exifNativo.GPSLatitude || exifNativo.latitude || null;
       const exifLng = exifNativo.GPSLongitude || exifNativo.longitude || null;
@@ -124,58 +123,103 @@ const RegistrarAvanceScreen = ({ route, navigation }) => {
       const exifMake = exifNativo.Make || null;
       const exifModel = exifNativo.Model || null;
 
-      // Subir al backend
-      const fd = new FormData();
-      fd.append('foto', {
-        uri: asset.uri,
-        type: asset.mimeType || 'image/jpeg',
-        name: asset.fileName || `foto_${Date.now()}.jpg`,
-      });
-      fd.append('categoria', 'VISTA_GENERAL');
+      const buildFD = () => {
+        const fd = new FormData();
+        fd.append('foto', {
+          uri: asset.uri,
+          type: asset.mimeType || 'image/jpeg',
+          name: asset.fileName || `foto_${Date.now()}.jpg`,
+        });
+        fd.append('categoria', 'VISTA_GENERAL');
+        if (location) {
+          fd.append('browserGpsLat', String(location.lat));
+          fd.append('browserGpsLng', String(location.lng));
+        }
+        if (proyecto?.coordenadas)
+          fd.append('proyectoCoords', JSON.stringify(proyecto.coordenadas));
+        if (exifLat) fd.append('exifLat', exifLat.toString());
+        if (exifLng) fd.append('exifLng', exifLng.toString());
+        if (exifAlt) fd.append('exifAlt', exifAlt.toString());
+        if (exifDate) {
+          const d = new Date(exifDate);
+          if (!isNaN(d.getTime()) && d.getFullYear() >= 1000 && d.getFullYear() <= 9999)
+            fd.append('exifDate', d.toISOString());
+        }
+        if (exifMake) fd.append('exifMake', exifMake);
+        if (exifModel) fd.append('exifModel', exifModel);
+        fd.append('exifRaw', JSON.stringify(asset.exif || {}));
+        return fd;
+      };
 
-      if (location) {
-        fd.append('browserGpsLat', location.lat);
-        fd.append('browserGpsLng', location.lng);
+      const processResult = (data) => {
+        const fotoData = data.data || data;
+        if (!fotoData.exif?.tieneGPS && exifLat) {
+          fotoData.exif = {
+            latitud: Number(exifLat), longitud: Number(exifLng),
+            altitud: exifAlt ? Number(exifAlt) : null,
+            fechaCaptura: exifDate ? new Date(exifDate) : null,
+            dispositivo: exifMake, modeloCamara: exifModel,
+            tieneGPS: true,
+          };
+        }
+        setFotos((prev) => [...prev, { ...fotoData, uri: asset.uri }]);
+        const warnings = checkGpsValidity(fotoData, exifLat);
+        if (warnings.length > 0)
+          setGpsAlert({ visible: true, mensajes: warnings, pending: fotoData });
+      };
+
+      const token = await AsyncStorage.getItem('@sdop_token');
+      const baseURL = api.defaults.baseURL;
+      const errores = [];
+
+      // E1: Axios FormData, timeout 30s
+      try {
+        const res = await api.post('/avances/upload', buildFD(), { timeout: 30000 });
+        return processResult(res.data);
+      } catch (e1) {
+        errores.push(`Axios: ${(e1.message || '').slice(0, 60)}`);
       }
 
-      if (proyecto?.coordenadas) {
-        fd.append('proyectoCoords', JSON.stringify(proyecto.coordenadas));
+      // E2: XMLHttpRequest nativo, timeout 45s
+      try {
+        const res = await new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('POST', `${baseURL}/avances/upload`);
+          if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+          xhr.timeout = 45000;
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300)
+              resolve(JSON.parse(xhr.responseText));
+            else
+              reject(new Error(`HTTP ${xhr.status}`));
+          };
+          xhr.onerror = () => reject(new Error('XHR error'));
+          xhr.ontimeout = () => reject(new Error('Timeout'));
+          xhr.send(buildFD());
+        });
+        return processResult(res.data || res);
+      } catch (e2) {
+        errores.push(`XHR: ${(e2.message || '').slice(0, 60)}`);
       }
 
-      // Enviar EXIF nativo (el que expo-image-picker obtiene REAL)
-      if (exifLat) fd.append('exifLat', exifLat.toString());
-      if (exifLng) fd.append('exifLng', exifLng.toString());
-      if (exifAlt) fd.append('exifAlt', exifAlt.toString());
-      if (exifDate) fd.append('exifDate', new Date(exifDate).toISOString());
-      if (exifMake) fd.append('exifMake', exifMake);
-      if (exifModel) fd.append('exifModel', exifModel);
-
-      const res = await api.post('/avances/upload', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-
-      const fotoData = res.data.data;
-
-      // Si el backend no devolvió EXIF GPS, usar el nativo
-      if (!fotoData.exif?.tieneGPS && exifLat) {
-        fotoData.exif = {
-          latitud: Number(exifLat), longitud: Number(exifLng),
-          altitud: exifAlt ? Number(exifAlt) : null,
-          fechaCaptura: exifDate ? new Date(exifDate) : null,
-          dispositivo: exifMake, modeloCamara: exifModel,
-          tieneGPS: true,
-        };
+      // E3: Fetch API directa (sin timeout)
+      try {
+        const fd = buildFD();
+        const res = await fetch(`${baseURL}/avances/upload`, {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: fd,
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        return processResult(json.data || json);
+      } catch (e3) {
+        errores.push(`Fetch: ${(e3.message || '').slice(0, 60)}`);
       }
 
-      setFotos((prev) => [...prev, { ...fotoData, uri: asset.uri }]);
-
-      // Validar GPS
-      const warnings = checkGpsValidity(fotoData, exifLat);
-      if (warnings.length > 0) {
-        setGpsAlert({ visible: true, mensajes: warnings, pending: fotoData });
-      }
+      Alert.alert('Error al subir foto', errores.join('\n'));
     } catch (e) {
-      Alert.alert('Error', e.response?.data?.message || 'Error al subir foto');
+      Alert.alert('Error', e.response?.data?.message || e.message || 'Error al subir foto');
     } finally {
       setUploading(false);
     }
@@ -255,6 +299,58 @@ const RegistrarAvanceScreen = ({ route, navigation }) => {
             radioPermitido={radio}
             estado={estadoVerif}
           />
+        )}
+
+        {/* EXIF Raw */}
+        {rawExif && (
+          <View>
+            {/* Summary */}
+            <View style={styles.exifSummary}>
+              <View style={styles.exifRow}>
+                <Text style={styles.exifLabel}>📡 GPS en foto</Text>
+                <Text style={[styles.exifValue, {
+                  color: (rawExif.GPSLatitude || rawExif.latitude) ? colors.success : colors.warning
+                }]}>
+                  {(rawExif.GPSLatitude || rawExif.latitude) ? 'Detectado' : 'No detectado'}
+                </Text>
+              </View>
+              {rawExif.GPSLatitude != null && rawExif.GPSLatitude !== 0 && (
+                <View style={styles.exifRow}>
+                  <Text style={styles.exifLabel}>Coordenadas</Text>
+                  <Text style={styles.exifValue}>{Number(rawExif.GPSLatitude).toFixed(6)}, {Number(rawExif.GPSLongitude).toFixed(6)}</Text>
+                </View>
+              )}
+              {location && (
+                <View style={styles.exifRow}>
+                  <Text style={styles.exifLabel}>🌐 GPS Navegador</Text>
+                  <Text style={styles.exifValue}>{location.lat.toFixed(6)}, {location.lng.toFixed(6)}</Text>
+                </View>
+              )}
+              <View style={styles.exifRow}>
+                <Text style={styles.exifLabel}>📱 Dispositivo</Text>
+                <Text style={styles.exifValue}>{(rawExif.Make || '?')} {(rawExif.Model || '')}</Text>
+              </View>
+              <View style={styles.exifRow}>
+                <Text style={styles.exifLabel}>📅 Fecha toma</Text>
+                <Text style={styles.exifValue}>{rawExif.DateTimeOriginal || rawExif.DateTimeDigitized || '?'}</Text>
+              </View>
+              {rawExif.ImageWidth && rawExif.ImageLength && (
+                <View style={styles.exifRow}>
+                  <Text style={styles.exifLabel}>📐 Resolución</Text>
+                  <Text style={styles.exifValue}>{rawExif.ImageWidth} × {rawExif.ImageLength}</Text>
+                </View>
+              )}
+            </View>
+            {/* JSON toggle */}
+            <TouchableOpacity style={styles.exifRawBtn} onPress={() => setExifOpen(!exifOpen)}>
+              <Text style={styles.exifRawBtnText}>📄 Ver JSON completo EXIF {exifOpen ? '▲' : '▼'}</Text>
+            </TouchableOpacity>
+            {exifOpen && (
+              <View style={styles.exifRawBox}>
+                <Text style={styles.exifRawText}>{JSON.stringify(rawExif, null, 2)}</Text>
+              </View>
+            )}
+          </View>
         )}
 
         {/* Botones de foto */}
@@ -445,6 +541,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   deleteText: { color: 'rgba(255,255,255,0.8)', fontSize: 11, fontWeight: '700' },
+  exifSummary: {
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 8, borderWidth: 1, borderColor: colors.border,
+    padding: 10, marginBottom: 6,
+  },
+  exifRow: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    paddingVertical: 3, borderBottomWidth: 0.5, borderBottomColor: 'rgba(255,255,255,0.04)',
+  },
+  exifLabel: { color: colors.textMuted, fontSize: 10, fontWeight: '600' },
+  exifValue: { color: colors.textSecondary, fontSize: 10, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
+  exifRawBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: 8, borderWidth: 1, borderColor: colors.border,
+    paddingVertical: 8, paddingHorizontal: 12, marginBottom: 8,
+  },
+  exifRawBtnText: { color: colors.textMuted, fontSize: 11, fontWeight: '600' },
+  exifRawBox: {
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    borderRadius: 8, padding: 10, marginBottom: 8,
+  },
+  exifRawText: { color: colors.textSecondary, fontSize: 9, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
   fotoChip: {
     position: 'absolute',
     bottom: 4,

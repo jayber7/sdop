@@ -115,6 +115,8 @@ const RegistrarAvance = () => {
   const [gpsAlertOpen, setGpsAlertOpen] = useState(false);
   const [gpsAlertMessages, setGpsAlertMessages] = useState([]);
   const [gpsAlertPending, setGpsAlertPending] = useState(null);
+  const [rawExif, setRawExif] = useState(null);
+  const [exifRawOpen, setExifRawOpen] = useState(false);
 
   useEffect(() => {
     if (!proyectoId) {
@@ -230,11 +232,18 @@ const RegistrarAvance = () => {
         fd.append('proyectoCoords', JSON.stringify(proyecto.coordenadas));
       }
 
+      setRawExif(exifData);
+      setExifRawOpen(false);
+
       if (exifData) {
         if (exifData.latitude) fd.append('exifLat', exifData.latitude.toString());
         if (exifData.longitude) fd.append('exifLng', exifData.longitude.toString());
         if (exifData.altitude) fd.append('exifAlt', exifData.altitude.toString());
-        if (exifData.DateTimeOriginal) fd.append('exifDate', exifData.DateTimeOriginal.toISOString());
+        if (exifData.DateTimeOriginal) {
+          const d = new Date(exifData.DateTimeOriginal);
+          if (!isNaN(d.getTime()) && d.getFullYear() >= 1000 && d.getFullYear() <= 9999)
+            fd.append('exifDate', d.toISOString());
+        }
         if (exifData.Make) fd.append('exifMake', exifData.Make);
         if (exifData.Model) fd.append('exifModel', exifData.Model);
       }
@@ -521,6 +530,95 @@ const RegistrarAvance = () => {
                     </Typography>
                   </Grid>
                 </Grid>
+              </Box>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* EXIF Raw Panel */}
+      {rawExif && (
+        <Card sx={{ ...glass.card, mb: 2 }}>
+          <CardContent sx={{ p: { xs: 1.5, md: 2 }, '&:last-child': { pb: { xs: 1.5, md: 2 } } }}>
+            {/* Summary */}
+            <Grid container spacing={1} sx={{ mb: 1.5 }}>
+              <Grid item xs={6} sm={3}>
+                <Box sx={{ p: 1, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: 1 }}>
+                  <Typography sx={{ color: 'rgba(150,200,255,0.4)', fontSize: '0.55rem', textTransform: 'uppercase' }}>📡 GPS en foto</Typography>
+                  <Typography sx={{ color: (rawExif.GPSLatitude || rawExif.latitude) ? '#00dbb4' : '#ffb300', fontWeight: 700, fontSize: '0.75rem', mt: 0.3 }}>
+                    {(rawExif.GPSLatitude || rawExif.latitude) ? 'Detectado' : 'No detectado'}
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={6} sm={3}>
+                <Box sx={{ p: 1, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: 1 }}>
+                  <Typography sx={{ color: 'rgba(150,200,255,0.4)', fontSize: '0.55rem', textTransform: 'uppercase' }}>📱 Dispositivo</Typography>
+                  <Typography sx={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600, fontSize: '0.7rem', mt: 0.3, fontFamily: 'monospace' }}>
+                    {(rawExif.Make || '?')} {(rawExif.Model || '')}
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={6} sm={3}>
+                <Box sx={{ p: 1, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: 1 }}>
+                  <Typography sx={{ color: 'rgba(150,200,255,0.4)', fontSize: '0.55rem', textTransform: 'uppercase' }}>📅 Fecha toma</Typography>
+                  <Typography sx={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600, fontSize: '0.65rem', mt: 0.3, fontFamily: 'monospace' }}>
+                    {rawExif.DateTimeOriginal || rawExif.DateTimeDigitized || '?'}
+                  </Typography>
+                </Box>
+              </Grid>
+              {rawExif.ImageWidth && rawExif.ImageLength && (
+                <Grid item xs={6} sm={3}>
+                  <Box sx={{ p: 1, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: 1 }}>
+                    <Typography sx={{ color: 'rgba(150,200,255,0.4)', fontSize: '0.55rem', textTransform: 'uppercase' }}>📐 Resolución</Typography>
+                    <Typography sx={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600, fontSize: '0.65rem', mt: 0.3, fontFamily: 'monospace' }}>
+                      {rawExif.ImageWidth} × {rawExif.ImageLength}
+                    </Typography>
+                  </Box>
+                </Grid>
+              )}
+            </Grid>
+            {(rawExif.GPSLatitude || rawExif.latitude) && (
+              <Box sx={{ mb: 1, p: 1, bgcolor: 'rgba(0,219,180,0.05)', borderRadius: 1, border: '1px solid rgba(0,219,180,0.1)' }}>
+                <Typography sx={{ color: 'rgba(0,219,180,0.8)', fontWeight: 600, fontSize: '0.7rem', fontFamily: 'monospace' }}>
+                  📍 {Number(rawExif.GPSLatitude || rawExif.latitude).toFixed(6)}, {Number(rawExif.GPSLongitude || rawExif.longitude).toFixed(6)}
+                </Typography>
+              </Box>
+            )}
+            {gps && !rawExif.GPSLatitude && !rawExif.latitude && (
+              <Box sx={{ mb: 1, p: 1, bgcolor: 'rgba(255,180,0,0.05)', borderRadius: 1, border: '1px solid rgba(255,180,0,0.1)' }}>
+                <Typography sx={{ color: 'rgba(255,200,0,0.7)', fontWeight: 600, fontSize: '0.65rem' }}>
+                  🌐 GPS asignado desde navegador: {gps.lat.toFixed(6)}, {gps.lng.toFixed(6)}
+                </Typography>
+              </Box>
+            )}
+            {/* JSON toggle */}
+            <Box
+              onClick={() => setExifRawOpen(!exifRawOpen)}
+              sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', pt: 0.5, borderTop: '1px solid rgba(255,255,255,0.04)' }}
+            >
+              <Typography sx={{ color: 'rgba(150,220,255,0.5)', fontWeight: 600, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                📄 Ver JSON completo EXIF
+              </Typography>
+              <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem' }}>
+                {exifRawOpen ? '▲' : '▼'}
+              </Typography>
+            </Box>
+            {exifRawOpen && (
+              <Box
+                component="pre"
+                sx={{
+                  mt: 1, p: 1.5, borderRadius: 1,
+                  bgcolor: 'rgba(0,0,0,0.3)',
+                  color: 'rgba(200,220,255,0.6)',
+                  fontSize: '0.65rem',
+                  fontFamily: 'monospace',
+                  overflow: 'auto',
+                  maxHeight: 300,
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-all',
+                }}
+              >
+                {JSON.stringify(rawExif, null, 2)}
               </Box>
             )}
           </CardContent>
