@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Typography } from '@mui/material';
-import { Verified, LocationOn } from '@mui/icons-material';
+import { Verified, LocationOn, Person, CalendarToday, AccessTime } from '@mui/icons-material';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -118,118 +118,61 @@ export default function VerificationReportLayout({
           {/* ===== HEADER ROW ===== */}
           <Box
             sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', md: 'auto 1fr auto' },
-              gap: 2,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
               p: 2,
               borderBottom: '1px solid rgba(255,255,255,0.06)',
             }}
           >
-            {/* LEFT: Map */}
-            <Box sx={{ width: { xs: '100%', md: 260 } }}>
-              {hasCoords ? (
-                <Box sx={{ borderRadius: 2, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
-                  <MapContainer
-                    center={[coords.lat, coords.lng]}
-                    zoom={16}
-                    scrollWheelZoom={false}
-                    style={{ height: 140, width: '100%' }}
-                    zoomControl={false}
-                    dragging={false}
-                  >
-                    <TileLayer
-                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
-                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    />
-                    <Marker position={[coords.lat, coords.lng]} icon={blueIcon}>
-                      <Popup>{proyecto?.nombre}</Popup>
-                    </Marker>
-                  </MapContainer>
-                </Box>
-              ) : (
-                <Box
-                  sx={{
-                    height: 140,
-                    borderRadius: 2,
-                    bgcolor: 'rgba(0,0,0,0.3)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: '1px dashed rgba(255,255,255,0.15)',
-                  }}
-                >
-                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)' }}>
-                    Sin coordenadas
-                  </Typography>
-                </Box>
-              )}
-              <Box sx={{ mt: 0.5, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                {hasCoords && (
-                  <>
-                    <Typography variant="caption" sx={{ color: 'rgba(150,200,255,0.7)', fontSize: '0.6rem' }}>
-                      <LocationOn sx={{ fontSize: 10, mr: 0.3, verticalAlign: 'middle' }} />
-                      {coords.lat.toFixed(6)}, {coords.lng.toFixed(6)}
-                    </Typography>
-                    {avance?.fotos?.[0]?.exif?.altitud && (
-                      <Typography variant="caption" sx={{ color: 'rgba(150,200,255,0.7)', fontSize: '0.6rem' }}>
-                        Alt: {Math.round(avance.fotos[0].exif.altitud)}m
-                      </Typography>
-                    )}
-                  </>
-                )}
-              </Box>
-            </Box>
-
-            {/* CENTER: Institution */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: { xs: 'center', md: 'left' } }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, justifyContent: { xs: 'center', md: 'flex-start' } }}>
-                <Box
-                  component="span"
-                  sx={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: '50%',
-                    bgcolor: 'rgba(0,100,200,0.2)',
-                    border: '1px solid rgba(0,150,255,0.3)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 18,
-                    flexShrink: 0,
-                  }}
-                >
-                  <Verified sx={{ fontSize: 18, color: 'rgba(100,200,255,0.9)' }} />
-                </Box>
-                <Box>
-                  <Typography sx={{ color: 'rgba(255,255,255,0.95)', fontWeight: 700, fontSize: '0.85rem', lineHeight: 1.2 }}>
-                    SDOP - ORURO
-                  </Typography>
-                  <Typography sx={{ color: 'rgba(100,200,255,0.6)', fontSize: '0.6rem', letterSpacing: '0.05em' }}>
-                    Secretaría Departamental de Obras Públicas
-                  </Typography>
-                  {unidadNombre && (
-                    <Typography sx={{ color: 'rgba(255,200,0,0.7)', fontSize: '0.65rem', fontWeight: 600, mt: 0.3 }}>
-                      {unidadNombre}
-                    </Typography>
-                  )}
-                </Box>
-              </Box>
-              <Typography
+            {/* LEFT: Institution + Title */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Box
+                component="span"
                 sx={{
-                  mt: 1,
-                  color: 'rgba(255,255,255,0.5)',
-                  fontSize: '0.6rem',
-                  letterSpacing: '0.08em',
-                  textTransform: 'uppercase',
-                  fontWeight: 500,
+                  width: 36,
+                  height: 36,
+                  borderRadius: '50%',
+                  bgcolor: 'rgba(0,100,200,0.2)',
+                  border: '1px solid rgba(0,150,255,0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 18,
+                  flexShrink: 0,
                 }}
               >
-                Verificación de Avance de Obra
-              </Typography>
+                <Verified sx={{ fontSize: 18, color: 'rgba(100,200,255,0.9)' }} />
+              </Box>
+              <Box>
+                <Typography sx={{ color: 'rgba(255,255,255,0.95)', fontWeight: 700, fontSize: '0.85rem', lineHeight: 1.2 }}>
+                  SDOP - ORURO
+                </Typography>
+                <Typography sx={{ color: 'rgba(100,200,255,0.6)', fontSize: '0.6rem', letterSpacing: '0.05em' }}>
+                  Secretaría Departamental de Obras Públicas
+                </Typography>
+                {unidadNombre && (
+                  <Typography sx={{ color: 'rgba(255,200,0,0.7)', fontSize: '0.65rem', fontWeight: 600, mt: 0.3 }}>
+                    {unidadNombre}
+                  </Typography>
+                )}
+                <Typography
+                  sx={{
+                    mt: 0.5,
+                    color: 'rgba(255,255,255,0.5)',
+                    fontSize: '0.6rem',
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    fontWeight: 500,
+                  }}
+                >
+                  Verificación de Avance de Obra{proyecto?.nombre ? <Box component="span" sx={{ color: 'rgba(100,200,255,0.6)' }}> — {proyecto.nombre}</Box> : ''}
+                </Typography>
+              </Box>
             </Box>
 
             {/* RIGHT: Timemark branding */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'flex-start', gap: 0.5 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'flex-start', gap: 0.5, flexShrink: 0 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                 <Verified sx={{ fontSize: 14, color: 'rgba(0,220,180,0.9)' }} />
                 <Typography sx={{ color: 'rgba(0,220,180,0.9)', fontWeight: 700, fontSize: '0.7rem', letterSpacing: '0.05em' }}>
@@ -259,34 +202,174 @@ export default function VerificationReportLayout({
             </Box>
           </Box>
 
-          {/* ===== INFO BAR ===== */}
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr 1fr', md: '1fr 1fr 1fr 1fr' },
-              gap: { xs: 1, md: 2 },
-              px: 2,
-              py: 1.5,
-              borderBottom: '1px solid rgba(255,255,255,0.06)',
-            }}
-          >
-            <Box>
-              <Typography sx={styles.sectionLabel}>Agente</Typography>
-              <Typography sx={styles.sectionValue}>{usuario?.nombre || '—'}</Typography>
+          {/* ===== MAP + INFO COLUMN (solo modo registro) ===== */}
+          {modo === 'registro' ? (
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', md: '3fr 2fr' },
+                gap: 2,
+                p: 2,
+                borderBottom: '1px solid rgba(255,255,255,0.06)',
+              }}
+            >
+              {/* MAP */}
+              <Box>
+                {hasCoords ? (
+                  <Box sx={{ borderRadius: 2, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <MapContainer
+                      center={[coords.lat, coords.lng]}
+                      zoom={16}
+                      scrollWheelZoom={false}
+                      style={{ height: 150, width: '100%' }}
+                      zoomControl={false}
+                      dragging={false}
+                    >
+                      <TileLayer
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      />
+                      <Marker position={[coords.lat, coords.lng]} icon={blueIcon}>
+                        <Popup>{proyecto?.nombre}</Popup>
+                      </Marker>
+                    </MapContainer>
+                  </Box>
+                ) : (
+                  <Box
+                    sx={{
+                      height: 150,
+                      borderRadius: 2,
+                      bgcolor: 'rgba(0,0,0,0.3)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '1px dashed rgba(255,255,255,0.15)',
+                    }}
+                  >
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)' }}>
+                      Sin coordenadas
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+
+              {/* INFO COLUMN */}
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, justifyContent: 'center' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Person sx={{ fontSize: 16, color: 'rgba(100,200,255,0.6)', flexShrink: 0 }} />
+                  <Box>
+                    <Typography sx={{ color: 'rgba(100,200,255,0.5)', fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }}>
+                      Agente
+                    </Typography>
+                    <Typography sx={{ color: 'rgba(255,255,255,0.92)', fontSize: '0.8rem', fontWeight: 600 }}>
+                      {usuario?.nombre || '—'}
+                    </Typography>
+                  </Box>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <CalendarToday sx={{ fontSize: 14, color: 'rgba(100,200,255,0.6)', flexShrink: 0 }} />
+                  <Box>
+                    <Typography sx={{ color: 'rgba(100,200,255,0.5)', fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }}>
+                      Fecha
+                    </Typography>
+                    <Typography sx={{ color: 'rgba(255,255,255,0.92)', fontSize: '0.8rem', fontWeight: 600 }}>
+                      {fecha || '—'}
+                    </Typography>
+                  </Box>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <AccessTime sx={{ fontSize: 16, color: 'rgba(100,200,255,0.6)', flexShrink: 0 }} />
+                  <Box>
+                    <Typography sx={{ color: 'rgba(100,200,255,0.5)', fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }}>
+                      Hora
+                    </Typography>
+                    <Typography sx={{ color: 'rgba(255,255,255,0.92)', fontSize: '0.8rem', fontWeight: 600 }}>
+                      {hora || '—'}
+                    </Typography>
+                  </Box>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <LocationOn sx={{ fontSize: 16, color: 'rgba(100,200,255,0.6)', flexShrink: 0 }} />
+                  <Box>
+                    <Typography sx={{ color: 'rgba(100,200,255,0.5)', fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }}>
+                      Geolocalización del Proyecto
+                    </Typography>
+                    <Typography sx={{ color: 'rgba(255,255,255,0.92)', fontSize: '0.78rem', fontWeight: 600, fontFamily: 'monospace' }}>
+                      {hasCoords ? `${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}` : '—'}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Box>
             </Box>
-            <Box>
-              <Typography sx={styles.sectionLabel}>Fecha</Typography>
-              <Typography sx={styles.sectionValue}>{fecha || '—'}</Typography>
-            </Box>
-            <Box>
-              <Typography sx={styles.sectionLabel}>Hora</Typography>
-              <Typography sx={styles.sectionValue}>{hora || '—'}</Typography>
-            </Box>
-            <Box>
-              <Typography sx={styles.sectionLabel}>Proyecto</Typography>
-              <Typography sx={{ ...styles.sectionValue, fontSize: '0.7rem' }}>{proyecto?.nombre || avance?.proyectoId?.nombre || '—'}</Typography>
-            </Box>
-          </Box>
+          ) : (
+            <>
+              {/* Layout clásico para modo detalle */}
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: { xs: '1fr', md: 'auto 1fr' },
+                  gap: 2,
+                  p: 2,
+                  borderBottom: '1px solid rgba(255,255,255,0.06)',
+                }}
+              >
+                <Box sx={{ width: { xs: '100%', md: 260 } }}>
+                  {hasCoords ? (
+                    <Box sx={{ borderRadius: 2, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
+                      <MapContainer
+                        center={[coords.lat, coords.lng]}
+                        zoom={16}
+                        scrollWheelZoom={false}
+                        style={{ height: 140, width: '100%' }}
+                        zoomControl={false}
+                        dragging={false}
+                      >
+                        <TileLayer
+                          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+                          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        />
+                        <Marker position={[coords.lat, coords.lng]} icon={blueIcon}>
+                          <Popup>{proyecto?.nombre}</Popup>
+                        </Marker>
+                      </MapContainer>
+                    </Box>
+                  ) : (
+                    <Box sx={{ height: 140, borderRadius: 2, bgcolor: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed rgba(255,255,255,0.15)' }}>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)' }}>Sin coordenadas</Typography>
+                    </Box>
+                  )}
+                </Box>
+                <Box />
+              </Box>
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: { xs: '1fr 1fr', md: '1fr 1fr 1fr 1fr' },
+                  gap: { xs: 1, md: 2 },
+                  px: 2,
+                  py: 1.5,
+                  borderBottom: '1px solid rgba(255,255,255,0.06)',
+                }}
+              >
+                <Box>
+                  <Typography sx={styles.sectionLabel}>Agente</Typography>
+                  <Typography sx={styles.sectionValue}>{usuario?.nombre || '—'}</Typography>
+                </Box>
+                <Box>
+                  <Typography sx={styles.sectionLabel}>Fecha</Typography>
+                  <Typography sx={styles.sectionValue}>{fecha || '—'}</Typography>
+                </Box>
+                <Box>
+                  <Typography sx={styles.sectionLabel}>Hora</Typography>
+                  <Typography sx={styles.sectionValue}>{hora || '—'}</Typography>
+                </Box>
+                <Box>
+                  <Typography sx={styles.sectionLabel}>Proyecto</Typography>
+                  <Typography sx={{ ...styles.sectionValue, fontSize: '0.7rem' }}>{proyecto?.nombre || avance?.proyectoId?.nombre || '—'}</Typography>
+                </Box>
+              </Box>
+            </>
+          )}
 
           {/* ===== BODY (with verification code sidebar) ===== */}
           <Box sx={{ display: 'flex' }}>
