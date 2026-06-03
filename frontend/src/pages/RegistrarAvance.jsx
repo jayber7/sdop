@@ -187,7 +187,16 @@ const RegistrarAvance = () => {
     const exif = fotoData.exif;
     const umbral = radio || 500;
 
-    // 1. EXIF sin GPS
+    // EXIF GPS disponible → fuente primaria de verificación
+    if (exif && exif.tieneGPS && distExif != null) {
+      if (distExif > umbral) {
+        messages.push(`GPS de la Fotografía no coincide con la ubicación del proyecto. Distancia: ${distExif}m (límite: ${umbral}m).`);
+      }
+      // Si EXIF está en rango, no se generan advertencias aunque el navegador esté lejos
+      return messages;
+    }
+
+    // Sin EXIF GPS: análisis de metadata
     if (exif && exif.tieneGPS === false && exif.dispositivo) {
       messages.push('GPS no estaba activado al tomar la fotografía. Active la geolocalización en la cámara de su dispositivo.');
     } else if (exif && exif.tieneGPS === false && !exif.dispositivo) {
@@ -196,21 +205,16 @@ const RegistrarAvance = () => {
       messages.push('No se pudieron extraer metadatos de la imagen. Verifique que el archivo sea una foto original.');
     }
 
-    // 2. Sin GPS del navegador
-    if (!gps && gpsError) {
-      messages.push(`Permisos de ubicación no concedidos: ${gpsError}`);
-    } else if (!gps && !gpsError) {
-      messages.push('No se pudo obtener la ubicación del navegador. Asegúrese de tener conexión a internet.');
-    }
-
-    // 3. GPS Navegador vs Proyecto
-    if (distBrowser != null && distBrowser > umbral) {
-      messages.push(`GPS del Navegador no coincide con la ubicación del proyecto. Distancia: ${distBrowser}m (límite: ${umbral}m).`);
-    }
-
-    // 4. GPS Foto vs Proyecto
-    if (distExif != null && distExif > umbral) {
-      messages.push(`GPS de la Fotografía no coincide con la ubicación del proyecto. Distancia: ${distExif}m (límite: ${umbral}m).`);
+    // Sin EXIF GPS: usar GPS del navegador como fallback
+    if (!exif?.tieneGPS) {
+      if (distBrowser != null && distBrowser > umbral) {
+        messages.push(`GPS del Navegador no coincide con la ubicación del proyecto. Distancia: ${distBrowser}m (límite: ${umbral}m).`);
+      }
+      if (!gps && gpsError) {
+        messages.push(`Permisos de ubicación no concedidos: ${gpsError}`);
+      } else if (!gps && !gpsError) {
+        messages.push('No se pudo obtener la ubicación del navegador. Asegúrese de tener conexión a internet.');
+      }
     }
 
     return messages;
@@ -876,7 +880,7 @@ const RegistrarAvance = () => {
               Verificación de Geolocalización
             </Typography>
             <Typography sx={{ color: 'rgba(150,200,255,0.5)', fontSize: '0.65rem' }}>
-              Comparando GPS del Navegador y de la Fotografía contra la ubicación del Proyecto
+              {gpsAlertPending?.exif?.tieneGPS ? 'GPS de la Fotografía (EXIF) como fuente principal · Navegador como referencia' : 'GPS del Navegador como fuente (foto sin GPS EXIF)'}
             </Typography>
           </Box>
         </DialogTitle>
@@ -895,6 +899,9 @@ const RegistrarAvance = () => {
                       <GpsFixed sx={{ fontSize: 14, color: '#5b9aff' }} />
                       <Box>
                         <Typography sx={{ color: 'rgba(150,200,255,0.5)', fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>GPS Navegador → Obra</Typography>
+                        <Typography sx={{ color: coordExif ? 'rgba(255,180,0,0.5)' : 'rgba(0,219,180,0.6)', fontSize: '0.55rem', fontWeight: 600 }}>
+                          {coordExif ? 'FALLBACK' : 'PRIMARIO'}
+                        </Typography>
                         {gps && (
                           <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.6rem', fontFamily: 'monospace' }}>
                             {fmtLat(gps.lat)}, {fmtLng(gps.lng)}
@@ -920,6 +927,11 @@ const RegistrarAvance = () => {
                       <CameraAlt sx={{ fontSize: 14, color: '#00dbb4' }} />
                       <Box>
                         <Typography sx={{ color: 'rgba(150,200,255,0.5)', fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>GPS Foto (EXIF) → Obra</Typography>
+                        {gpsAlertPending?.exif?.tieneGPS && (
+                          <Typography sx={{ color: 'rgba(0,219,180,0.6)', fontSize: '0.55rem', fontWeight: 600 }}>
+                            PRIMARIO
+                          </Typography>
+                        )}
                         {coordExif && (
                           <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.6rem', fontFamily: 'monospace' }}>
                             {fmtLat(coordExif.lat)}, {fmtLng(coordExif.lng)}

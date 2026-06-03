@@ -55,34 +55,46 @@ const geoVerificationMiddleware = (req, res, next) => {
       coinciden = distanciaExifBrowser < 100;
     }
 
-    let estado = 'VERIFICADO';
+    // --- Nueva lógica: EXIF como fuente PRIMARIA, browser como FALLBACK ---
+    let estado = 'SOSPECHOSO';
     let observaciones = '';
+    let distanciaExifObra = null;
 
-    if (distancia > radioAceptado) {
+    if (exifGps) {
+      // Fuente primaria: GPS de la foto (EXIF)
+      distanciaExifObra = haversineDistance(exifGps, proyecto);
+      if (distanciaExifObra <= radioAceptado) {
+        estado = 'VERIFICADO';
+        observaciones = `GPS de la fotografía dentro del radio de ${radioAceptado}m (distancia: ${Math.round(distanciaExifObra)}m)`;
+      } else {
+        estado = 'SOSPECHOSO';
+        observaciones = `GPS de la fotografía fuera del radio de ${radioAceptado}m (distancia: ${Math.round(distanciaExifObra)}m)`;
+      }
+    } else if (browserGpsLat && browserGpsLng) {
+      // Sin EXIF: usar GPS del navegador como fallback
+      if (distancia <= radioAceptado) {
+        estado = 'VERIFICADO';
+        observaciones = `GPS del navegador dentro del radio de ${radioAceptado}m (distancia: ${Math.round(distancia)}m)`;
+      } else {
+        estado = 'SOSPECHOSO';
+        observaciones = `GPS del navegador fuera del radio de ${radioAceptado}m (distancia: ${Math.round(distancia)}m)`;
+      }
+    } else {
       estado = 'SOSPECHOSO';
-      observaciones = `Fuera del radio de ${radioAceptado}m (distancia: ${Math.round(distancia)}m)`;
-    }
-
-    if (exifGps && !coinciden) {
-      estado = 'SOSPECHOSO';
-      observaciones += ` | EXIF y GPS navegador no coinciden (${Math.round(distanciaExifBrowser)}m)`;
-    }
-
-    if (!exifGps && !browserGpsLat) {
-      estado = 'SOSPECHOSO';
-      observaciones = 'Sin datos de geolocalización en la foto';
+      observaciones = 'Sin datos de geolocalización en la foto ni en el navegador';
     }
 
     req.verificacion = {
-      ubicacionValida: distancia <= radioAceptado,
+      ubicacionValida: estado === 'VERIFICADO',
       fechaValida: true,
-      distanciaObraMetros: Math.round(distancia),
+      distanciaObraMetros: exifGps ? Math.round(distanciaExifObra) : Math.round(distancia),
       radioAceptadoMetros: radioAceptado,
-      metadataConsistente: coinciden,
+      metadataConsistente: true,
       distanciaExifBrowserMetros: distanciaExifBrowser ? Math.round(distanciaExifBrowser) : null,
+      distanciaExifObraMetros: distanciaExifObra ? Math.round(distanciaExifObra) : null,
       exifDisponible: !!exifGps,
       estado,
-      observaciones: observaciones || 'Verificación exitosa',
+      observaciones,
     };
 
     next();

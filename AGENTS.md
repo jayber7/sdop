@@ -37,7 +37,7 @@ SDOP/
 │   │   ├── server.js              # Entry point (puerto 5001)
 │   │   ├── app.js                 # Configuración Express (CORS, middleware, rutas, trust proxy)
 │   │   ├── config/                # DB (con reconnect), Cloudinary
-│   │   ├── models/                # 33 modelos Mongoose
+│   │   ├── models/                # 34 modelos Mongoose (+Counter)
 │   │   ├── routes/                # 6 archivos de rutas
 │   │   ├── controllers/           # Handlers de rutas (pendiente)
 │   │   └── middleware/            # auth, permission, unitAccess, exifExtractor, geoVerification
@@ -57,7 +57,9 @@ SDOP/
 │   │   ├── components/            # Componentes reutilizables
 │   │   │   ├── FeedbackButton.jsx    # Botón flotante de feedback
 │   │   │   ├── ResourcePage.jsx      # Componente genérico CRUD
-│   │   │   └── UnitSidebar.jsx       # Sidebar con acordeones por unidad
+│   │   │   ├── UnitSidebar.jsx       # Sidebar con acordeones por unidad
+│   │   │   ├── AvanceDetailModal.jsx # Modal fullscreen para ver detalle de avance
+│   │   │   └── VerificationReportLayout.jsx # Layout tipo reporte con escudo, mapa, info
 │   │   └── pages/                 # 38 páginas
 │   │       ├── di/                # 6 páginas DI
 │   │       ├── je/                # 5 páginas JE
@@ -86,6 +88,7 @@ SDOP/
 |--------|-------------|--------------|
 | `Proyecto` | Proyectos de obra pública | codigoSisin, nombre, tipo, coordenadas, presupuestoTotal, avanceFisico, avanceFinanciero, empresaId, supervisorId, inspectorId, unidadResponsable |
 | `AvanceObra` | Reportes de avance con fotos georeferenciadas | numeroReporte, avanceFisicoParcial/Acumulado, fotos[] (con EXIF + verificación), estado |
+| `Counter` | Contador secuencial atómico para numeroReporte | nombre, seq |
 | `Empresa` | Empresas constructoras | nombre, NIT, representanteLegal, especialidades, categoria, registroSICOPI |
 | `PersonaTecnica` | Supervisores, inspectores, fiscales | nombreCompleto, CI, profesion, matriculaProfesional, rol, especialidad, unidadAsignada |
 | `HitoPresupuestario` | Hitos de pago por avance | proyectoId, avanceFisicoMinimo, montoAsociado, estado |
@@ -222,9 +225,9 @@ Base URL: `http://localhost:5001/api`
 | Dashboard | `/` | Estadísticas, proyectos recientes |
 | Proyectos | `/proyectos` | Lista con filtros por unidad/estado/tipo |
 | ProyectoDetalle | `/proyectos/:id` | Detalle del proyecto |
-| Avances | `/avances` | Lista con filtros |
-| AvanceDetalle | `/avances/:id` | Detalle con fotos, aprobar/observar |
-| RegistrarAvance | `/avances/nuevo` | Formulario + captura foto + GPS |
+| Avances | `/avances` | Árbol por proyecto con acordeones colapsables, búsqueda por texto (nombre proyecto o AV- código), chips de estado por grupo |
+| AvanceDetalle | `/avances/:id` | Detalle con fotos, aprobar/observar, close button vuelve al árbol preservando expansión via `?expand=proyectoId` |
+| RegistrarAvance | `/avances/nuevo` | Formulario + captura foto + GPS; edición via `/avances/:id/editar` |
 | Feedback | `/feedback` | Panel de feedback |
 
 ### Administración (ADMIN)
@@ -287,7 +290,8 @@ Base URL: `http://localhost:5001/api`
 | `FeedbackButton` | Botón flotante (FAB) para enviar feedback |
 | `ResourcePage` | Componente genérico CRUD (tabla + formulario) reutilizable por los 24 recursos |
 | `UnitSidebar` | Sidebar con acordeones colapsables por unidad, colores y filtrado por acceso |
-| `VerificationReportLayout` | Layout tipo reporte con escudo, mapa, info de agente/fecha/hora/geolocalización, y sidebar de verificación. Dos modos: `registro` (mapa + columna info lado a lado) y `detalle` (layout clásico con info bar horizontal). |
+| `AvanceDetailModal` | Modal fullscreen para ver detalle de avance sin perder estado del árbol |
+| `VerificationReportLayout` | Layout tipo reporte con escudo, mapa, info de agente/fecha/hora/geolocalización, y sidebar de verificación. Dos modos: `registro` (mapa + columna info lado a lado) y `detalle` (layout clásico con info bar horizontal). Incluye `onClose` + botón Close en header. |
 
 ## Sistema de Autenticación y Permisos
 
@@ -402,7 +406,8 @@ cd backend
 npm install
 npm run dev        # nodemon con hot reload (puerto 5001)
 npm start          # node sin hot reload
-npm run seed       # sembrar datos de prueba
+npm run seed       # sembrar datos de prueba (usuarios, proyectos, empresas, etc.)
+npm run seed-avances # sembrar 180 avances con 547 fotos georeferenciadas
 npm test           # ejecutar tests con Jest
 npm run test:watch # tests en modo watch
 ```
@@ -502,7 +507,7 @@ npm run preview      # Preview del build
 
 9. **Reconexión MongoDB**: El backend no se cierra si falla la conexión a MongoDB; reintenta cada 5 segundos.
 
-10. **Siembra de datos**: `backend/src/seed.js` crea 5 unidades, 5 usuarios, 28 proyectos, 5 empresas, 6 personas técnicas, ~110 hitos, 7 feedbacks y datos de prueba para los 9 nuevos modelos por unidad.
+10. **Siembra de datos**: `backend/src/seed.js` crea 5 unidades, 5 usuarios, 28 proyectos, 5 empresas, 6 personas técnicas, ~110 hitos, 7 feedbacks y datos de prueba para los 9 nuevos modelos por unidad. `backend/src/seedAvances.js` crea 180 avances con 547 fotos georeferenciadas (usa Counter para numeroReporte secuencial, no elimina datos existentes).
 
 11. **Permisos granulares**: Implementados mediante `permissionMiddleware.js` con matriz centralizada de permisos por rol y recurso.
 
@@ -510,6 +515,10 @@ npm run preview      # Preview del build
 
 13. **Componente genérico**: `ResourcePage.jsx` maneja CRUD para los 24 recursos específicos de unidad, reduciendo código repetido.
 
-14. **Verificación dual GPS**: El frontend compara **ambas fuentes** (GPS navegador y GPS foto) contra las coordenadas del proyecto usando haversine. Si cualquiera excede el radio (default 500m), se muestra un diálogo con tabla comparativa de distancias y el estado se marca como SOSPECHOSO.
+14. **Verificación dual GPS**: El frontend compara **ambas fuentes** (GPS navegador y GPS foto) contra las coordenadas del proyecto usando haversine. El **GPS de la foto (EXIF) es la fuente primaria**: si el EXIF tiene coordenadas y están dentro del radio, la foto se marca VERIFICADO sin importar dónde esté el navegador al subir. El GPS del navegador solo se usa como **fallback** cuando la foto no trae GPS propio (foto tomada sin geolocalización).
 
 15. **Layout VerificationReportLayout**: Modo `registro` muestra mapa a la izquierda y columna de info (agente, fecha, hora, geolocalización) a la derecha. Modo `detalle` mantiene el layout clásico con info bar horizontal. El título incluye el nombre del proyecto.
+
+16. **Admin edita avances en cualquier estado**: El backend permite que ADMIN modifique avances sin importar su estado (BORRADOR/ENVIADO/APROBADO/OBSERVADO). Otros roles solo editan ENVIADO. En el frontend, ADMIN ve un campo `estado` en el formulario de edición para cambiar el estado directamente.
+
+17. **Árbol de avances por proyecto**: La página `/avances` agrupa los reportes en acordeones por proyecto con chips de estado. La búsqueda por texto filtra por nombre de proyecto o código de reporte (AV-XXXX). Los acordeones se expanden/colapsan individualmente y preservan su estado via `?expand=proyectoId` al regresar desde el detalle.
