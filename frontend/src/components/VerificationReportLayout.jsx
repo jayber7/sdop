@@ -1,6 +1,6 @@
 import React from 'react';
-import { Box, Typography } from '@mui/material';
-import { Verified, LocationOn, Person, CalendarToday, AccessTime } from '@mui/icons-material';
+import { Box, Typography, IconButton } from '@mui/material';
+import { Verified, LocationOn, Person, CalendarToday, AccessTime, Close } from '@mui/icons-material';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -99,6 +99,7 @@ export default function VerificationReportLayout({
   hora,
   unidadNombre,
   modo = 'registro',
+  onClose,
 }) {
   const hasBg = !!backgroundImage;
   const coords = proyecto?.coordenadas;
@@ -171,34 +172,42 @@ export default function VerificationReportLayout({
               </Box>
             </Box>
 
-            {/* RIGHT: Timemark branding */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'flex-start', gap: 0.5, flexShrink: 0 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <Verified sx={{ fontSize: 14, color: 'rgba(0,220,180,0.9)' }} />
-                <Typography sx={{ color: 'rgba(0,220,180,0.9)', fontWeight: 700, fontSize: '0.7rem', letterSpacing: '0.05em' }}>
-                  Timemark
-                </Typography>
-              </Box>
-              <Typography
-                sx={{
-                  color: 'rgba(0,220,180,0.5)',
-                  fontSize: '0.55rem',
-                  letterSpacing: '0.08em',
-                  textTransform: 'uppercase',
-                  fontWeight: 600,
-                  border: '1px solid rgba(0,220,180,0.2)',
-                  px: 0.8,
-                  py: 0.15,
-                  borderRadius: 1,
-                }}
-              >
-                Foto 100% Real
-              </Typography>
-              {modo === 'detalle' && avance?.numeroReporte && (
-                <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.55rem', mt: 0.5 }}>
-                  #{avance.numeroReporte}
-                </Typography>
+            {/* RIGHT: Timemark branding + Close */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexShrink: 0 }}>
+              {onClose && (
+                <IconButton size="small" onClick={onClose}
+                  sx={{ color: 'rgba(255,255,255,0.4)', '&:hover': { color: 'rgba(255,255,255,0.8)', bgcolor: 'rgba(255,255,255,0.05)' } }}>
+                  <Close fontSize="small" />
+                </IconButton>
               )}
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <Verified sx={{ fontSize: 14, color: 'rgba(0,220,180,0.9)' }} />
+                  <Typography sx={{ color: 'rgba(0,220,180,0.9)', fontWeight: 700, fontSize: '0.7rem', letterSpacing: '0.05em' }}>
+                    Timemark
+                  </Typography>
+                </Box>
+                <Typography
+                  sx={{
+                    color: 'rgba(0,220,180,0.5)',
+                    fontSize: '0.55rem',
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    fontWeight: 600,
+                    border: '1px solid rgba(0,220,180,0.2)',
+                    px: 0.8,
+                    py: 0.15,
+                    borderRadius: 1,
+                  }}
+                >
+                  Foto 100% Real
+                </Typography>
+                {modo === 'detalle' && avance?.numeroReporte && (
+                  <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.55rem', mt: 0.5 }}>
+                    #{avance.numeroReporte}
+                  </Typography>
+                )}
+              </Box>
             </Box>
           </Box>
 

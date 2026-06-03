@@ -4,10 +4,11 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions, Alert, Accordion, AccordionSummary, AccordionDetails,
 } from '@mui/material';
 import { Add, Visibility, Delete, Edit, Warning, ExpandMore, Circle } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import ProjectSelectorModal from '../components/ProjectSelectorModal';
+import AvanceDetailModal from '../components/AvanceDetailModal';
 
 const stateColor = (estado) => {
   switch (estado) {
@@ -26,11 +27,15 @@ const Avances = () => {
   const [selectorOpen, setSelectorOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [viewAvanceId, setViewAvanceId] = useState(null);
   const [expanded, setExpanded] = useState(new Set());
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
 
   const canDelete = user?.rol === 'ADMIN';
+
+  const expandFromUrl = searchParams.get('expand');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -49,6 +54,18 @@ const Avances = () => {
     };
     fetchData();
   }, []);
+
+  // Expandir proyecto desde query param y hacer scroll
+  useEffect(() => {
+    if (expandFromUrl) {
+      setExpanded(new Set([expandFromUrl]));
+      setTimeout(() => {
+        const el = document.getElementById(`accordion-${expandFromUrl}`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 300);
+      window.history.replaceState(null, '', '/avances');
+    }
+  }, [expandFromUrl]);
 
   const filtered = useMemo(() => {
     if (!search.trim()) return avances;
@@ -109,7 +126,7 @@ const Avances = () => {
           const isExpanded = expanded.has(proyId);
           const estados = [...new Set(items.map((a) => a.estado))];
           return (
-            <Accordion key={proyId} expanded={isExpanded} onChange={() => toggleExpanded(proyId)}
+            <Accordion key={proyId} id={`accordion-${proyId}`} expanded={isExpanded} onChange={() => toggleExpanded(proyId)}
               sx={{
                 mb: 1.5, borderRadius: '12px !important', overflow: 'hidden',
                 bgcolor: 'rgba(15,20,45,0.6)', backdropFilter: 'blur(12px)',
@@ -156,7 +173,7 @@ const Avances = () => {
                               <Chip label={a.estado} size="small" color={stateColor(a.estado)}
                                 sx={{ fontSize: '0.65rem', height: 20 }} />
                               <Box sx={{ display: 'flex', gap: 0.3 }}>
-                                <Button size="small" sx={{ minWidth: 32, px: 0.8 }} onClick={() => navigate(`/avances/${a._id}`)}>
+                                <Button size="small" sx={{ minWidth: 32, px: 0.8 }} onClick={() => setViewAvanceId(a._id)}>
                                   <Visibility fontSize="small" />
                                 </Button>
                                 {(a.estado === 'ENVIADO' || user?.rol === 'ADMIN') && (
@@ -234,6 +251,7 @@ const Avances = () => {
       </Dialog>
 
       <ProjectSelectorModal open={selectorOpen} onClose={() => setSelectorOpen(false)} />
+      <AvanceDetailModal avanceId={viewAvanceId} onClose={() => setViewAvanceId(null)} />
     </Box>
   );
 };

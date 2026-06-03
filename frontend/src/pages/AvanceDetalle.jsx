@@ -287,6 +287,7 @@ const AvanceDetalle = () => {
     <VerificationReportLayout
       mode="detalle"
       backgroundImage={bgImage}
+      onClose={() => navigate('/avances?expand=' + (avance.proyectoId?._id || ''))}
       proyecto={avance.proyectoId}
       avance={avance}
       usuario={avance.registradoPor}
