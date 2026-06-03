@@ -8,6 +8,7 @@ const Empresa = require('../models/Empresa');
 const PersonaTecnica = require('../models/PersonaTecnica');
 const HitoPresupuestario = require('../models/HitoPresupuestario');
 const Desembolso = require('../models/Desembolso');
+const AvanceObra = require('../models/AvanceObra');
 const RedVial = require('../models/RedVial');
 const LicenciaVehiculo = require('../models/LicenciaVehiculo');
 const MantenimientoVial = require('../models/MantenimientoVial');
@@ -64,7 +65,42 @@ router.get('/proyectos', authMiddleware, unitAccessMiddleware, filterByUnit, req
       Proyecto.countDocuments(filter),
     ]);
 
-    res.json({ status: 'success', data: proyectos, total, page: parseInt(page), pages: Math.ceil(total / limit) });
+    // Agregar conteo y avance real desde avances aprobados
+    const proyectoIds = proyectos.map((p) => p._id);
+    const [avanceCounts, avanceMax] = await Promise.all([
+      AvanceObra.aggregate([
+        { $match: { proyectoId: { $in: proyectoIds } } },
+        { $group: { _id: '$proyectoId', count: { $sum: 1 } } },
+      ]),
+      AvanceObra.aggregate([
+        { $match: { proyectoId: { $in: proyectoIds }, estado: 'APROBADO' } },
+        {
+          $group: {
+            _id: '$proyectoId',
+            maxFisico: { $max: '$avanceFisicoAcumulado' },
+            maxFinanciero: { $max: '$avanceFinancieroAcumulado' },
+          },
+        },
+      ]),
+    ]);
+    const countMap = {};
+    avanceCounts.forEach((a) => { countMap[a._id.toString()] = a.count; });
+    const maxMap = {};
+    avanceMax.forEach((a) => {
+      maxMap[a._id.toString()] = { fisico: a.maxFisico, financiero: a.maxFinanciero };
+    });
+    const proyectosConAvances = proyectos.map((p) => {
+      const id = p._id.toString();
+      const maxData = maxMap[id];
+      return {
+        ...p.toObject(),
+        avanceCount: countMap[id] || 0,
+        avanceFisico: maxData?.fisico ?? 0,
+        avanceFinanciero: maxData?.financiero ?? 0,
+      };
+    });
+
+    res.json({ status: 'success', data: proyectosConAvances, total, page: parseInt(page), pages: Math.ceil(total / limit) });
   } catch (error) {
     res.status(500).json({ status: 'error', message: error.message });
   }

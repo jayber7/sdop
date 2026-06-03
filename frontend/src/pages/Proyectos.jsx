@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { Box, Typography, Card, CardContent, Grid, Chip, LinearProgress, Button, TextField, MenuItem, InputAdornment } from '@mui/material';
-import { Search, Add, Visibility, Edit } from '@mui/icons-material';
+import { Search, Add, Visibility, Edit, LocationOn } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 
@@ -138,9 +138,17 @@ const Proyectos = () => {
                       <Button size="small" variant="outlined" startIcon={<Visibility />} onClick={() => navigate(`/proyectos/${p._id}`)}>Ver</Button>
                     </Box>
                   </Box>
-                  <Box sx={{ display: 'flex', gap: 3, mb: 1 }}>
+                  <Box sx={{ display: 'flex', gap: 3, mb: 1, alignItems: 'center' }}>
                     <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)' }}>Presupuesto: <strong style={{ color: 'rgba(255,255,255,0.85)' }}>Bs {p.presupuestoTotal?.toLocaleString()}</strong></Typography>
                     <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)' }}>Fuente: {p.fuenteFinanciamiento}</Typography>
+                    {p.coordenadas?.lat && p.coordenadas?.lng && (
+                      <Typography variant="body2" sx={{ color: 'rgba(150,200,255,0.5)', display: 'flex', alignItems: 'center', gap: 0.3, ml: 1 }}>
+                        <LocationOn sx={{ fontSize: 13 }} /> {p.coordenadas.lat.toFixed(6)}, {p.coordenadas.lng.toFixed(6)}
+                      </Typography>
+                    )}
+                    <Typography variant="body2" sx={{ color: 'rgba(0,219,180,0.6)', display: 'flex', alignItems: 'center', gap: 0.3, ml: 1 }}>
+                      📋 {p.avanceCount ?? 0} avances
+                    </Typography>
                   </Box>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                     <Typography variant="caption" sx={{ color: 'rgba(150,200,255,0.6)', minWidth: 60 }}>Físico: {p.avanceFisico}%</Typography>

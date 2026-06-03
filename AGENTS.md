@@ -16,7 +16,7 @@ Sistema web para la administración y control de proyectos de obras públicas de
 - **Autenticación**: Local (email/password) con JWT
 - **Geolocalización**: navigator.geolocation API
 - **EXIF**: exifr (extracción de metadatos de fotos en frontend)
-- **Mapas**: React Leaflet (pendiente de implementar)
+- **Mapas**: React Leaflet (implementado en VRF y RegistrarAvance)
 - **Gráficos**: Recharts (pendiente de implementar)
 
 ### Backend
@@ -287,6 +287,7 @@ Base URL: `http://localhost:5001/api`
 | `FeedbackButton` | Botón flotante (FAB) para enviar feedback |
 | `ResourcePage` | Componente genérico CRUD (tabla + formulario) reutilizable por los 24 recursos |
 | `UnitSidebar` | Sidebar con acordeones colapsables por unidad, colores y filtrado por acceso |
+| `VerificationReportLayout` | Layout tipo reporte con escudo, mapa, info de agente/fecha/hora/geolocalización, y sidebar de verificación. Dos modos: `registro` (mapa + columna info lado a lado) y `detalle` (layout clásico con info bar horizontal). |
 
 ## Sistema de Autenticación y Permisos
 
@@ -334,18 +335,30 @@ Base URL: `http://localhost:5001/api`
 - Los metadatos extraídos se envían como campos adicionales en FormData (`exifLat`, `exifLng`, `exifMake`, `exifModel`, etc.)
 - Esto compensa que Cloudinary elimina el EXIF durante el procesamiento de imágenes
 
-### Verificación Automática
+### Layout del Formulario
+1. **Header**: Escudo SDOP + nombre del proyecto en el título + Timemark
+2. **Mapa + Columna Info**: Mapa del proyecto a la izquierda; a la derecha columna con iconos: 👤 Agente, 📅 Fecha, 🕐 Hora, 📍 Geolocalización del Proyecto
+3. **Evidencia Fotográfica + Datos del Avance**: Lado a lado — captura/adjunta foto + formulario con campos de avance (default 1%)
+4. **Geolocalización del Avance**: Panel con GPS del Navegador vs GPS de la Foto (EXIF) con distancia al proyecto y barra de radio permitido
+5. **Datos EXIF**: Resumen de GPS detectado, dispositivo, fecha de toma, y JSON EXIF completo expandible
+
+### Verificación Automática (Frontend + Backend)
 ```
-Foto subida → Backend intenta extraer EXIF del archivo
-            → Si falla (Cloudinary lo eliminó), usa EXIF enviado desde frontend (fallback)
-            → Captura GPS del navegador (Geolocation API)
-            → Calcula distancia foto vs obra (haversine)
-            → Verificación cruzada:
-               ├─ EXIF GPS cerca de la obra? (radio configurable, default 500m)
-               ├─ Browser GPS cerca de la obra?
-               ├─ EXIF GPS y Browser GPS coinciden? (< 100m entre sí)
-               └─ Foto tomada en últimas 48h? (si EXIF disponible)
-            → Estado: VERIFICADO / SOSPECHOSO / RECHAZADO
+Foto subida → Frontend extrae EXIF con exifr (gps, make, model, datetime)
+            → Envía foto + GPS navegador + EXIF en FormData
+            → Backend verifica y devuelve estado
+            → Frontend compara ambas fuentes contra el proyecto:
+               ├─ GPS Navegador → Obra: distancia (m)
+               ├─ GPS Foto → Obra: distancia (m)
+               └─ Si alguna excede el radio (default 500m) → SOSPECHOSO
+            → Diálogo con tabla comparativa:
+               ┌──────────────────┬──────────┬──────────┐
+               │ Fuente           │ Distancia│ Estado   │
+               ├──────────────────┼──────────┼──────────┤
+               │ Nav. → Obra      │ Xm       │ ✅/⚠️    │
+               │ Foto → Obra      │ Ym       │ ✅/⚠️    │
+               └──────────────────┴──────────┴──────────┘
+            → Usuario puede reintentar o continuar
 ```
 
 ## Despliegue
@@ -496,3 +509,7 @@ npm run preview      # Preview del build
 12. **Sidebar dinámico**: El `UnitSidebar` construye el menú basado en las unidades asignadas al usuario. ADMIN ve todas las unidades, otros roles solo las suyas.
 
 13. **Componente genérico**: `ResourcePage.jsx` maneja CRUD para los 24 recursos específicos de unidad, reduciendo código repetido.
+
+14. **Verificación dual GPS**: El frontend compara **ambas fuentes** (GPS navegador y GPS foto) contra las coordenadas del proyecto usando haversine. Si cualquiera excede el radio (default 500m), se muestra un diálogo con tabla comparativa de distancias y el estado se marca como SOSPECHOSO.
+
+15. **Layout VerificationReportLayout**: Modo `registro` muestra mapa a la izquierda y columna de info (agente, fecha, hora, geolocalización) a la derecha. Modo `detalle` mantiene el layout clásico con info bar horizontal. El título incluye el nombre del proyecto.

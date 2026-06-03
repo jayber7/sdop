@@ -1,22 +1,32 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
-  Box, Typography, Card, CardContent, Grid, Chip, Button, TextField, MenuItem,
-  Dialog, DialogTitle, DialogContent, DialogActions, Alert,
+  Box, Typography, Card, CardContent, Grid, Chip, Button, TextField,
+  Dialog, DialogTitle, DialogContent, DialogActions, Alert, Accordion, AccordionSummary, AccordionDetails,
 } from '@mui/material';
-import { Add, Visibility, Delete, Warning } from '@mui/icons-material';
+import { Add, Visibility, Delete, Edit, Warning, ExpandMore, Circle } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import ProjectSelectorModal from '../components/ProjectSelectorModal';
 
+const stateColor = (estado) => {
+  switch (estado) {
+    case 'APROBADO': return 'success';
+    case 'OBSERVADO': return 'error';
+    case 'ENVIADO': return 'warning';
+    default: return 'default';
+  }
+};
+
 const Avances = () => {
   const [avances, setAvances] = useState([]);
   const [proyectos, setProyectos] = useState([]);
-  const [filter, setFilter] = useState({ proyectoId: '', estado: '' });
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [selectorOpen, setSelectorOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [expanded, setExpanded] = useState(new Set());
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -26,7 +36,7 @@ const Avances = () => {
     const fetchData = async () => {
       try {
         const [avRes, proyRes] = await Promise.all([
-          api.get('/avances', { params: { limit: 100, ...filter } }),
+          api.get('/avances', { params: { limit: 100 } }),
           api.get('/gestion/proyectos', { params: { limit: 100 } }),
         ]);
         setAvances(avRes.data.data);
@@ -38,7 +48,34 @@ const Avances = () => {
       }
     };
     fetchData();
-  }, [filter]);
+  }, []);
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return avances;
+    const q = search.trim().toLowerCase();
+    return avances.filter((a) =>
+      a.proyectoId?.nombre?.toLowerCase().includes(q) ||
+      a.numeroReporte?.toLowerCase().includes(q)
+    );
+  }, [avances, search]);
+
+  const grouped = useMemo(() => {
+    const map = {};
+    filtered.forEach((a) => {
+      const id = a.proyectoId?._id || 'sin-proyecto';
+      if (!map[id]) map[id] = { proyecto: a.proyectoId, avances: [] };
+      map[id].avances.push(a);
+    });
+    return Object.values(map).sort((a, b) => (b.avances.length - a.avances.length));
+  }, [filtered]);
+
+  const toggleExpanded = (id) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -61,57 +98,101 @@ const Avances = () => {
         <Button variant="contained" startIcon={<Add />} onClick={() => setSelectorOpen(true)}>Nuevo Avance</Button>
       </Box>
 
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6}>
-          <TextField select fullWidth label="Filtrar por Proyecto" value={filter.proyectoId}
-            onChange={(e) => setFilter({ ...filter, proyectoId: e.target.value })}>
-            <MenuItem value="">Todos los proyectos</MenuItem>
-            {proyectos.map((p) => <MenuItem key={p._id} value={p._id}>{p.nombre}</MenuItem>)}
-          </TextField>
-        </Grid>
-        <Grid item xs={12} sm={6}>
-          <TextField select fullWidth label="Filtrar por Estado" value={filter.estado}
-            onChange={(e) => setFilter({ ...filter, estado: e.target.value })}>
-            <MenuItem value="">Todos los estados</MenuItem>
-            {['BORRADOR', 'ENVIADO', 'APROBADO', 'OBSERVADO'].map((e) => <MenuItem key={e} value={e}>{e}</MenuItem>)}
-          </TextField>
-        </Grid>
-      </Grid>
+      <TextField fullWidth size="small" placeholder="Buscar por nombre de proyecto o código de avance (AV-...)" value={search}
+        onChange={(e) => setSearch(e.target.value)} sx={{ mb: 3 }} />
 
-      {loading ? <Typography>Cargando...</Typography> : avances.length === 0 ? (
+      {loading ? <Typography>Cargando...</Typography> : filtered.length === 0 ? (
         <Card><CardContent><Typography color="text.secondary">No hay avances registrados</Typography></CardContent></Card>
       ) : (
-        <Grid container spacing={2}>
-          {avances.map((a) => (
-            <Grid item xs={12} key={a._id}>
-              <Card>
-                <CardContent>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Box>
-                      <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{a.numeroReporte}</Typography>
-                      <Typography variant="body2" color="text.secondary">{a.proyectoId?.nombre || 'Proyecto'}</Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                      <Chip label={a.estado} size="small" color={a.estado === 'APROBADO' ? 'success' : a.estado === 'OBSERVADO' ? 'error' : 'warning'} />
-                      <Button size="small" startIcon={<Visibility />} onClick={() => navigate(`/avances/${a._id}`)}>Ver</Button>
-                      {canDelete && (
-                        <Button size="small" color="error" startIcon={<Delete />}
-                          onClick={() => setDeleteTarget(a)}>Eliminar</Button>
-                      )}
-                    </Box>
-                  </Box>
-                  <Typography variant="body2">{a.hitoDescripcion}</Typography>
-                  <Box sx={{ display: 'flex', gap: 3, mt: 1 }}>
-                    <Typography variant="caption">Físico: {a.avanceFisicoAcumulado}%</Typography>
-                    <Typography variant="caption">Financiero: {a.avanceFinancieroAcumulado}%</Typography>
-                    <Typography variant="caption">Fotos: {a.fotos?.length || 0}</Typography>
-                    <Typography variant="caption">{new Date(a.fechaReporte).toLocaleDateString('es-BO')}</Typography>
-                  </Box>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
+        grouped.map(({ proyecto, avances: items }) => {
+          const proyId = proyecto?._id || 'sin-proyecto';
+          const isExpanded = expanded.has(proyId);
+          const estados = [...new Set(items.map((a) => a.estado))];
+          return (
+            <Accordion key={proyId} expanded={isExpanded} onChange={() => toggleExpanded(proyId)}
+              sx={{
+                mb: 1.5, borderRadius: '12px !important', overflow: 'hidden',
+                bgcolor: 'rgba(15,20,45,0.6)', backdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255,255,255,0.06)',
+                '&:before': { display: 'none' },
+                '&.Mui-expanded': { my: 0, mb: 1.5 },
+              }}>
+              <AccordionSummary expandIcon={<ExpandMore sx={{ color: 'rgba(255,255,255,0.6)' }} />}
+                sx={{ minHeight: 48, '&.Mui-expanded': { minHeight: 48 }, '& .MuiAccordionSummary-content': { my: 1.5 } }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%', pr: 2 }}>
+                  <Circle sx={{ fontSize: 10, color: 'rgba(100,180,255,0.5)' }} />
+                  <Typography sx={{ fontWeight: 600, fontSize: '0.95rem' }}>
+                    {proyecto?.nombre || 'Sin proyecto'}
+                  </Typography>
+                  <Chip label={`${items.length} avance${items.length !== 1 ? 's' : ''}`} size="small"
+                    sx={{ bgcolor: 'rgba(100,180,255,0.12)', color: 'rgba(100,180,255,0.8)', fontSize: '0.7rem' }} />
+                  {estados.map((e) => (
+                    <Chip key={e} label={e} size="small" color={stateColor(e)}
+                      sx={{ fontSize: '0.65rem', height: 20 }} />
+                  ))}
+                </Box>
+              </AccordionSummary>
+              <AccordionDetails sx={{ pt: 0, pb: 1.5, px: 2 }}>
+                <Grid container spacing={1.5}>
+                  {items.map((a) => (
+                    <Grid item xs={12} key={a._id}>
+                      <Card sx={{
+                        bgcolor: 'rgba(255,255,255,0.03)',
+                        border: '1px solid rgba(255,255,255,0.05)',
+                        borderRadius: 2,
+                        '&:hover': { borderColor: 'rgba(100,180,255,0.2)' },
+                      }}>
+                        <CardContent sx={{ py: 1.5, px: 2, '&:last-child': { pb: 1.5 } }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Box>
+                              <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: '0.85rem' }}>
+                                {a.numeroReporte}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {a.actividadesRealizadas?.substring(0, 80) || a.hitoDescripcion?.substring(0, 80) || '—'}
+                              </Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', gap: 0.8, alignItems: 'center', flexShrink: 0 }}>
+                              <Chip label={a.estado} size="small" color={stateColor(a.estado)}
+                                sx={{ fontSize: '0.65rem', height: 20 }} />
+                              <Box sx={{ display: 'flex', gap: 0.3 }}>
+                                <Button size="small" sx={{ minWidth: 32, px: 0.8 }} onClick={() => navigate(`/avances/${a._id}`)}>
+                                  <Visibility fontSize="small" />
+                                </Button>
+                                {(a.estado === 'ENVIADO' || user?.rol === 'ADMIN') && (
+                                  <Button size="small" sx={{ minWidth: 32, px: 0.8 }} onClick={() => navigate(`/avances/${a._id}/editar`)}>
+                                    <Edit fontSize="small" />
+                                  </Button>
+                                )}
+                                {canDelete && (
+                                  <Button size="small" color="error" sx={{ minWidth: 32, px: 0.8 }}
+                                    onClick={() => setDeleteTarget(a)}>
+                                    <Delete fontSize="small" />
+                                  </Button>
+                                )}
+                              </Box>
+                            </Box>
+                          </Box>
+                          <Box sx={{ display: 'flex', gap: 2, mt: 0.5 }}>
+                            <Typography variant="caption" color="text.secondary">
+                              Físico: {a.avanceFisicoAcumulado}% | Financiero: {a.avanceFinancieroAcumulado}%
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              📷 {a.fotos?.length || 0}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {new Date(a.fechaReporte).toLocaleDateString('es-BO')}
+                            </Typography>
+                          </Box>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  ))}
+                </Grid>
+              </AccordionDetails>
+            </Accordion>
+          );
+        })
       )}
 
       <Dialog open={!!deleteTarget} onClose={() => !deleting && setDeleteTarget(null)} maxWidth="sm" fullWidth

@@ -10,6 +10,7 @@ const extractExifMiddleware = require('../middleware/exifExtractor');
 const geoVerificationMiddleware = require('../middleware/geoVerification');
 const AvanceObra = require('../models/AvanceObra');
 const Proyecto = require('../models/Proyecto');
+const Counter = require('../models/Counter');
 
 const storage = new CloudinaryStorage({
   cloudinary,
@@ -107,9 +108,49 @@ router.post('/', authMiddleware, requirePermission('avances', 'create'), async (
     if (!proyecto) return res.status(404).json({ status: 'error', message: 'Proyecto no encontrado' });
 
     const year = new Date().getFullYear();
-    const count = await AvanceObra.countDocuments({ proyectoId });
     const codigoPart = String(proyecto.codigoInterno).replace(/\s+/g, '').slice(-8).padStart(8, '0');
-    const numeroReporte = `AV-${year}-${codigoPart}-${String(count + 1).padStart(3, '0')}`;
+
+    // Atomic counter con retry en caso de colisión
+    const counterKey = `avance_${proyectoId}`;
+    let seq, numeroReporte;
+
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await Counter.updateOne({ _id: counterKey }, { $inc: { seq: 1 } }, { upsert: true });
+      const counter = await Counter.findById(counterKey);
+      seq = counter.seq;
+
+      // Primer uso: seed con el máximo seq existente
+      if (seq === 1) {
+        const lastAvance = await AvanceObra.findOne({ proyectoId })
+          .sort({ numeroReporte: -1 })
+          .lean();
+        let maxExisting = 0;
+        if (lastAvance?.numeroReporte) {
+          const match = lastAvance.numeroReporte.match(/-(\d{3})$/);
+          if (match) maxExisting = parseInt(match[1], 10);
+        }
+        if (maxExisting > 0) {
+          const adjusted = await Counter.findOneAndUpdate(
+            { _id: counterKey, seq: 1 },
+            { $set: { seq: maxExisting + 1 } },
+            { returnDocument: 'after' }
+          );
+          if (adjusted) seq = adjusted.seq;
+        }
+      }
+
+      numeroReporte = `AV-${year}-${codigoPart}-${String(seq).padStart(3, '0')}`;
+
+      // Verificar que no exista ya (safety net por si el counter se desincroniza)
+      const exists = await AvanceObra.findOne({ proyectoId, numeroReporte }).lean();
+      if (!exists) break;
+      // Si ya existe, el loop intenta el siguiente seq automáticamente ($inc ya se ejecutó)
+      seq = null;
+    }
+
+    if (!seq || !numeroReporte) {
+      return res.status(409).json({ status: 'error', message: 'No se pudo generar un número de reporte único. Intente nuevamente.' });
+    }
 
     const codigoVerificacion = crypto
       .createHash('sha256')
@@ -209,11 +250,16 @@ router.get('/:id', authMiddleware, requirePermission('avances', 'read'), async (
   }
 });
 
-// ACTUALIZAR AVANCE
+// ACTUALIZAR AVANCE (solo ENVIADO, o cualquier estado si ADMIN)
 router.put('/:id', authMiddleware, requirePermission('avances', 'update'), async (req, res) => {
   try {
+    const existing = await AvanceObra.findById(req.params.id);
+    if (!existing) return res.status(404).json({ status: 'error', message: 'Avance no encontrado' });
+    const esAdmin = req.usuario?.rol === 'ADMIN';
+    if (!esAdmin && existing.estado !== 'ENVIADO') {
+      return res.status(400).json({ status: 'error', message: 'Solo se puede editar un avance en estado ENVIADO' });
+    }
     const avance = await AvanceObra.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
-    if (!avance) return res.status(404).json({ status: 'error', message: 'Avance no encontrado' });
     res.json({ status: 'success', data: avance });
   } catch (error) {
     res.status(400).json({ status: 'error', message: error.message });

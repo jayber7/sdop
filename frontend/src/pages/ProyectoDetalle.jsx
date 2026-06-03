@@ -3,8 +3,18 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Card, CardContent, Grid, Chip, LinearProgress, Button, Divider, Tabs, Tab,
 } from '@mui/material';
-import { ArrowBack, Map as MapIcon, Assignment } from '@mui/icons-material';
+import { ArrowBack, Assignment } from '@mui/icons-material';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import api from '../services/api';
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
 
 const ProyectoDetalle = () => {
   const { id } = useParams();
@@ -100,9 +110,27 @@ const ProyectoDetalle = () => {
               <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mb: 0.5 }}><strong style={{ color: 'rgba(150,200,255,0.7)' }}>Supervisor:</strong> {proyecto.supervisorId?.nombreCompleto || '-'}</Typography>
               <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mb: 0.5 }}><strong style={{ color: 'rgba(150,200,255,0.7)' }}>Inspector:</strong> {proyecto.inspectorId?.nombreCompleto || '-'}</Typography>
               {proyecto.coordenadas?.lat && (
-                <Box sx={{ mt: 2, p: 2, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, textAlign: 'center', border: '1px solid rgba(255,255,255,0.06)' }}>
-                  <MapIcon sx={{ fontSize: 32, color: '#5b9aff' }} />
-                  <Typography variant="body2" sx={{ color: 'rgba(150,200,255,0.6)', mt: 0.5 }}>
+                <Box
+                  sx={{ mt: 2, borderRadius: 2, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}
+                  title="DobleClick=Zoom+ / Shift+Dobleclick=Zoom- | Shift+Marcar=zoom area"
+                >
+                  <MapContainer
+                    center={[proyecto.coordenadas.lat, proyecto.coordenadas.lng]}
+                    zoom={15}
+                    scrollWheelZoom={false}
+                    style={{ height: 160, width: '100%' }}
+                    zoomControl={false}
+                    dragging={false}
+                  >
+                    <TileLayer
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                    <Marker position={[proyecto.coordenadas.lat, proyecto.coordenadas.lng]}>
+                      <Popup>{proyecto.nombre}</Popup>
+                    </Marker>
+                  </MapContainer>
+                  <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', py: 0.5, color: 'rgba(150,200,255,0.5)', fontSize: '0.6rem', bgcolor: 'rgba(0,0,0,0.2)' }}>
                     {proyecto.coordenadas.lat.toFixed(6)}, {proyecto.coordenadas.lng.toFixed(6)}
                   </Typography>
                 </Box>

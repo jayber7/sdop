@@ -68,6 +68,7 @@ const App = () => {
         <Route path="avances/:id" element={<AvanceDetalle />} />
         <Route path="avances/nuevo" element={<RegistrarAvance />} />
         <Route path="avances/:proyectoId/nuevo" element={<RegistrarAvance />} />
+        <Route path="avances/:id/editar" element={<RegistrarAvance />} />
         <Route path="empresas" element={<Empresas />} />
         <Route path="personas-tecnicas" element={<PersonasTecnicas />} />
         <Route path="hitos" element={<HitosPresupuestarios />} />

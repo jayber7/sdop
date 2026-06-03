@@ -98,7 +98,9 @@ function haversineDistance(coord1, coord2) {
 }
 
 const RegistrarAvance = () => {
-  const { proyectoId } = useParams();
+  const { proyectoId, id } = useParams();
+  const isEditing = !!id;
+  const avanceId = id;
   const navigate = useNavigate();
   const { user } = useAuth();
   const cameraInputRef = useRef(null);
@@ -114,7 +116,7 @@ const RegistrarAvance = () => {
   const [formData, setFormData] = useState({
     avanceFisicoParcial: '1', avanceFisicoAcumulado: '1', avanceFinancieroParcial: '1',
     avanceFinancieroAcumulado: '1', hitoDescripcion: '', actividadesRealizadas: '',
-    problemasIdentificados: '', clima: 'SOLEADO',
+    problemasIdentificados: '', clima: 'SOLEADO', estado: '',
   });
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -127,13 +129,35 @@ const RegistrarAvance = () => {
   const [exifRawOpen, setExifRawOpen] = useState(false);
 
   useEffect(() => {
-    if (!proyectoId) {
+    if (!proyectoId && !id) {
       navigate('/avances', { replace: true });
       return;
     }
-    api.get(`/gestion/proyectos/${proyectoId}`).then((res) => setProyecto(res.data.data));
+    if (isEditing) {
+      api.get(`/avances/${avanceId}`).then((res) => {
+        const a = res.data.data;
+        setFormData({
+          avanceFisicoParcial: String(a.avanceFisicoParcial ?? '1'),
+          avanceFisicoAcumulado: String(a.avanceFisicoAcumulado ?? '1'),
+          avanceFinancieroParcial: String(a.avanceFinancieroParcial ?? '1'),
+          avanceFinancieroAcumulado: String(a.avanceFinancieroAcumulado ?? '1'),
+          hitoDescripcion: a.hitoDescripcion || '',
+          actividadesRealizadas: a.actividadesRealizadas || '',
+          problemasIdentificados: a.problemasIdentificados || '',
+          clima: a.clima || 'SOLEADO',
+          estado: a.estado || '',
+        });
+        if (a.fotos?.length) {
+          setFotos(a.fotos.map((f) => ({ ...f, preview: f.url })));
+        }
+        // proyecto viene poblado desde el backend
+        if (a.proyectoId?._id) setProyecto(a.proyectoId);
+      });
+    } else {
+      api.get(`/gestion/proyectos/${proyectoId}`).then((res) => setProyecto(res.data.data));
+    }
     getCurrentLocation();
-  }, [proyectoId]);
+  }, [proyectoId, id]);
 
   const getCurrentLocation = () => {
     setGpsError(null);
@@ -319,20 +343,28 @@ const RegistrarAvance = () => {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      await api.post('/avances', {
+      const formBase = { ...formData };
+      if (!isEditing) delete formBase.estado;
+      const payload = {
         proyectoId: proyectoId || proyecto?._id,
-        ...formData,
+        ...formBase,
         avanceFisicoParcial: parseFloat(formData.avanceFisicoParcial),
         avanceFisicoAcumulado: parseFloat(formData.avanceFisicoAcumulado),
         avanceFinancieroParcial: parseFloat(formData.avanceFinancieroParcial),
         avanceFinancieroAcumulado: parseFloat(formData.avanceFinancieroAcumulado),
-        fotos: fotos.map((f) => ({
+      };
+      if (!isEditing) {
+        payload.fotos = fotos.map((f) => ({
           url: f.url, publicId: f.publicId, exif: f.exif, verificacion: f.verificacion,
           categoria: f.categoria, descripcion: f.descripcion,
-        })),
-      });
+        }));
+        await api.post('/avances', payload);
+      } else {
+        await api.put(`/avances/${avanceId}`, payload);
+      }
       setSuccess(true);
-      setTimeout(() => navigate(`/proyectos/${proyectoId || proyecto?._id}`), 2000);
+      const dest = isEditing ? `/avances/${avanceId}` : `/proyectos/${proyectoId || proyecto?._id}`;
+      setTimeout(() => navigate(dest), 2000);
     } catch (error) {
       setSubmitError(error.response?.data?.message || 'Error al registrar el avance');
     } finally {
@@ -559,6 +591,16 @@ const RegistrarAvance = () => {
                     ))}
                   </TextField>
                 </Grid>
+                {isEditing && user?.rol === 'ADMIN' && (
+                  <Grid item xs={12}>
+                    <TextField select fullWidth size="small" label="Estado" value={formData.estado} sx={glass.input}
+                      onChange={(e) => setFormData({ ...formData, estado: e.target.value })}>
+                      {['ENVIADO', 'APROBADO', 'OBSERVADO', 'BORRADOR'].map((s) => (
+                        <MenuItem key={s} value={s}>{s}</MenuItem>
+                      ))}
+                    </TextField>
+                  </Grid>
+                )}
               </Grid>
 
               {success && (
@@ -575,7 +617,7 @@ const RegistrarAvance = () => {
               <Box sx={{ mt: 2, display: 'flex', gap: 1.5 }}>
                 <Button fullWidth sx={glass.btnPrimary} onClick={handleSubmit}
                   disabled={submitting || fotos.length === 0}>
-                  {submitting ? 'Enviando...' : 'Enviar Avance'}
+                  {submitting ? 'Guardando...' : isEditing ? 'Actualizar Avance' : 'Enviar Avance'}
                 </Button>
                 <Button fullWidth sx={glass.btnOutline} onClick={() => navigate(-1)}>
                   Cancelar
