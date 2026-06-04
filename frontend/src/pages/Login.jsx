@@ -42,6 +42,7 @@ const Login = () => {
             <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>SDOP</Typography>
             <Typography variant="body1" color="text.secondary">
               Sistema de Gestión y Control de Obras Públicas
+              Gestión 2026
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
               Secretaría Departamental de Obras Públicas - Oruro

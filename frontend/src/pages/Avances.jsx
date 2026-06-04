@@ -85,7 +85,11 @@ const Avances = () => {
       if (!map[id]) map[id] = { proyecto: a.proyectoId, avances: [] };
       map[id].avances.push(a);
     });
-    return Object.values(map).sort((a, b) => (b.avances.length - a.avances.length));
+    return Object.values(map).sort((a, b) => {
+      const maxA = new Date(Math.max(...a.avances.map(av => new Date(av.fechaReporte))));
+      const maxB = new Date(Math.max(...b.avances.map(av => new Date(av.fechaReporte))));
+      return maxB - maxA;
+    });
   }, [filtered]);
 
   const toggleExpanded = (id) => {

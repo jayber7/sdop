@@ -74,7 +74,6 @@ const UnitSidebar = ({ unidades, selectedUnidad, setSelectedUnidad, onLogout }) 
         borderBottom: '1px solid rgba(100,180,255,0.08)',
       }}>
         <Typography variant="h6" sx={{ fontWeight: 700, color: 'rgba(255,255,255,0.92)' }}>SDOP</Typography>
-        <Typography variant="caption" sx={{ color: 'rgba(150,200,255,0.5)' }}>Gestión de Obras Públicas</Typography>
       </Box>
       <Divider />
 
