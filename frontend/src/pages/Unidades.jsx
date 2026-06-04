@@ -6,6 +6,7 @@ import {
 import { Add, Edit, Delete, Save } from '@mui/icons-material';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { can } from '../utils/permissions';
 
 const Unidades = () => {
   const { user } = useAuth();
@@ -74,7 +75,7 @@ const Unidades = () => {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" sx={{ fontWeight: 700 }}>Unidades Organizativas</Typography>
-        {user?.rol === 'ADMIN' && (
+        {can(user, 'unidades', 'create') && (
           <Button variant="contained" startIcon={<Add />} onClick={() => handleOpenDialog()}>Nueva Unidad</Button>
         )}
       </Box>
@@ -98,7 +99,7 @@ const Unidades = () => {
                       </Typography>
                     )}
                   </Box>
-                  {user?.rol === 'ADMIN' && (
+                  {can(user, 'unidades', 'update') && (
                     <Box sx={{ display: 'flex', gap: 0.5 }}>
                       <IconButton size="small" onClick={() => handleOpenDialog(u)}><Edit fontSize="small" /></IconButton>
                       <IconButton size="small" color="error" onClick={() => handleDelete(u._id)}><Delete fontSize="small" /></IconButton>

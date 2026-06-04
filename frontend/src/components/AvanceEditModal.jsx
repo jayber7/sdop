@@ -5,6 +5,7 @@ import {
 import { Close, Save, Smartphone, AccessTime, GpsFixed, LocationOn, CheckCircle, Warning, CameraAlt } from '@mui/icons-material';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { can } from '../utils/permissions';
 
 export default function AvanceEditModal({ avanceId, onClose, onSaved }) {
   const [avance, setAvance] = useState(null);
@@ -130,7 +131,7 @@ export default function AvanceEditModal({ avanceId, onClose, onSaved }) {
                       {['SOLEADO', 'NUBLADO', 'LLUVIA', 'GRANIZO', 'NIEBLA'].map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}
                     </TextField>
                   </Grid>
-                  {(avance.estado === 'ENVIADO' || user?.rol === 'ADMIN') && (
+                  {(avance.estado === 'ENVIADO' || can(user, 'avances', 'update')) && (
                     <Grid item xs={12}>
                       <TextField select fullWidth size="small" label="Estado" value={formData.estado}
                         onChange={(e) => setFormData({ ...formData, estado: e.target.value })}

@@ -7,6 +7,7 @@ import { Add, Visibility, Delete, Edit, Warning, ExpandMore, Circle } from '@mui
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { can } from '../utils/permissions';
 import ProjectSelectorModal from '../components/ProjectSelectorModal';
 import AvanceDetailModal from '../components/AvanceDetailModal';
 
@@ -33,27 +34,28 @@ const Avances = () => {
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
 
-  const canDelete = user?.rol === 'ADMIN';
+  const canDelete = can(user, 'avances', 'delete');
 
   const expandFromUrl = searchParams.get('expand');
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [avRes, proyRes] = await Promise.all([
-          api.get('/avances', { params: { limit: 100 } }),
-          api.get('/gestion/proyectos', { params: { limit: 100 } }),
-        ]);
-        setAvances(avRes.data.data);
-        setProyectos(proyRes.data.data);
-      } catch (error) {
-        console.error('Error:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchData();
   }, []);
+
+  const fetchData = async () => {
+    try {
+      const [avRes, proyRes] = await Promise.all([
+        api.get('/avances', { params: { limit: 100 } }),
+        api.get('/gestion/proyectos', { params: { limit: 100 } }),
+      ]);
+      setAvances(avRes.data.data);
+      setProyectos(proyRes.data.data);
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Expandir proyecto desde query param y hacer scroll
   useEffect(() => {
@@ -176,7 +178,7 @@ const Avances = () => {
                                 <Button size="small" sx={{ minWidth: 32, px: 0.8 }} onClick={() => setViewAvanceId(a._id)}>
                                   <Visibility fontSize="small" />
                                 </Button>
-                                {(a.estado === 'ENVIADO' || user?.rol === 'ADMIN') && (
+                                {(a.estado === 'ENVIADO' || can(user, 'avances', 'update')) && (
                                   <Button size="small" sx={{ minWidth: 32, px: 0.8 }} onClick={() => navigate(`/avances/${a._id}/editar`)}>
                                     <Edit fontSize="small" />
                                   </Button>
@@ -251,7 +253,7 @@ const Avances = () => {
       </Dialog>
 
       <ProjectSelectorModal open={selectorOpen} onClose={() => setSelectorOpen(false)} />
-      <AvanceDetailModal avanceId={viewAvanceId} onClose={() => setViewAvanceId(null)} />
+      <AvanceDetailModal avanceId={viewAvanceId} onClose={() => setViewAvanceId(null)} onUpdate={fetchData} />
     </Box>
   );
 };

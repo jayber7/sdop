@@ -3,10 +3,12 @@ import {
   Container, Typography, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Button, Chip, Dialog, DialogTitle, DialogContent, DialogActions, TextField, FormControl,
   InputLabel, Select, MenuItem, Box, IconButton, Alert, Stack, Chip as MuiChip,
+  Accordion, AccordionSummary, AccordionDetails, Checkbox, FormControlLabel, FormGroup,
 } from '@mui/material';
-import { Add, Edit, Delete, Block, CheckCircle, Visibility, VisibilityOff } from '@mui/icons-material';
+import { Add, Edit, Delete, Block, CheckCircle, Visibility, VisibilityOff, ExpandMore as ExpandMoreIcon } from '@mui/icons-material';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { can, getDefaultPermissions, RESOURCE_ACTIONS } from '../utils/permissions';
 
 const ROLES = ['ADMIN', 'SUPERVISOR', 'INSPECTOR', 'FISCAL', 'VISOR'];
 
@@ -24,6 +26,8 @@ const Usuarios = () => {
   const [formData, setFormData] = useState({
     nombre: '', email: '', password: '', rol: 'VISOR', unidadesAcceso: [],
   });
+  const [customPermisos, setCustomPermisos] = useState(false);
+  const [permisosOverrides, setPermisosOverrides] = useState({});
 
   useEffect(() => {
     fetchUsuarios();
@@ -60,9 +64,14 @@ const Usuarios = () => {
         rol: usuario.rol,
         unidadesAcceso: usuario.unidadesAcceso?.map(u => u._id) || [],
       });
+      const userPerms = usuario.permisos || {};
+      setPermisosOverrides(userPerms);
+      setCustomPermisos(Object.keys(userPerms).length > 0);
     } else {
       setSelectedUser(null);
       setFormData({ nombre: '', email: '', password: '', rol: 'VISOR', unidadesAcceso: [] });
+      setPermisosOverrides({});
+      setCustomPermisos(false);
     }
     setDialogOpen(true);
   };
@@ -70,19 +79,26 @@ const Usuarios = () => {
   const handleCloseDialog = () => {
     setDialogOpen(false);
     setSelectedUser(null);
+    setCustomPermisos(false);
+    setPermisosOverrides({});
     setError('');
   };
 
   const handleSubmit = async () => {
     setError('');
     try {
+      const payload = { ...formData };
+      if (customPermisos) {
+        payload.permisos = permisosOverrides;
+      } else {
+        payload.permisos = {};
+      }
       if (selectedUser) {
-        const updateData = { ...formData };
-        if (!updateData.password) delete updateData.password;
-        await api.put(`/gestion/usuarios/${selectedUser.id}`, updateData);
+        if (!payload.password) delete payload.password;
+        await api.put(`/gestion/usuarios/${selectedUser._id}`, payload);
         setSuccess('Usuario actualizado');
       } else {
-        await api.post('/gestion/usuarios', formData);
+        await api.post('/gestion/usuarios', payload);
         setSuccess('Usuario creado');
       }
       handleCloseDialog();
@@ -93,9 +109,22 @@ const Usuarios = () => {
     }
   };
 
+  const togglePermiso = (resource, action) => {
+    setPermisosOverrides((prev) => {
+      const current = [...(prev[resource] || [])];
+      const idx = current.indexOf(action);
+      if (idx >= 0) {
+        current.splice(idx, 1);
+      } else {
+        current.push(action);
+      }
+      return { ...prev, [resource]: current };
+    });
+  };
+
   const handleToggleActivo = async (usuario) => {
     try {
-      await api.put(`/gestion/usuarios/${usuario.id}/activar`, { activo: !usuario.activo });
+      await api.put(`/gestion/usuarios/${usuario._id}/activar`, { activo: !usuario.activo });
       fetchUsuarios();
     } catch (err) {
       setError(err.response?.data?.message || 'Error al cambiar estado');
@@ -104,7 +133,7 @@ const Usuarios = () => {
 
   const handleDelete = async () => {
     try {
-      await api.delete(`/gestion/usuarios/${selectedUser.id}`);
+      await api.delete(`/gestion/usuarios/${selectedUser._id}`);
       setDeleteDialogOpen(false);
       setSelectedUser(null);
       fetchUsuarios();
@@ -120,7 +149,7 @@ const Usuarios = () => {
     return colors[rol] || 'default';
   };
 
-  if (user?.rol !== 'ADMIN') {
+  if (!can(user, 'usuarios', 'read')) {
     return (
       <Container maxWidth="lg" sx={{ mt: 4 }}>
         <Alert severity="error">No tienes permiso para acceder a esta página</Alert>
@@ -137,7 +166,6 @@ const Usuarios = () => {
         </Button>
       </Box>
 
-      {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
       {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
 
       <TableContainer component={Paper}>
@@ -153,8 +181,8 @@ const Usuarios = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {usuarios.map((u) => (
-              <TableRow key={u.id} sx={{ opacity: u.activo ? 1 : 0.5 }}>
+                          {usuarios.map((u) => (
+              <TableRow key={u._id} sx={{ opacity: u.activo ? 1 : 0.5 }}>
                 <TableCell>{u.nombre}</TableCell>
                 <TableCell>{u.email}</TableCell>
                 <TableCell><Chip label={u.rol} size="small" color={getRolColor(u.rol)} /></TableCell>
@@ -185,11 +213,11 @@ const Usuarios = () => {
         <DialogTitle>{selectedUser ? 'Editar Usuario' : 'Nuevo Usuario'}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
+            {error && <Alert severity="error" onClose={() => setError('')}>{error}</Alert>}
             <TextField label="Nombre" fullWidth value={formData.nombre}
               onChange={(e) => setFormData({ ...formData, nombre: e.target.value })} required />
             <TextField label="Email" type="email" fullWidth value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value.toLowerCase() })}
-              required disabled={!!selectedUser} />
+              onChange={(e) => setFormData({ ...formData, email: e.target.value.toLowerCase() })} required />
             <TextField label={selectedUser ? 'Nueva contraseña (dejar vacío para mantener)' : 'Contraseña'}
               type={showPassword ? 'text' : 'password'} fullWidth value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -215,6 +243,61 @@ const Usuarios = () => {
                 {unidades.map((u) => <MenuItem key={u._id} value={u._id}>{u.nombre}</MenuItem>)}
               </Select>
             </FormControl>
+
+            {/* PERMISOS */}
+            <Accordion sx={{
+              bgcolor: 'rgba(15,20,45,0.4)', borderRadius: '8px !important', overflow: 'hidden',
+              border: '1px solid rgba(100,180,255,0.08)', '&:before': { display: 'none' },
+            }}>
+              <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: 'rgba(255,255,255,0.5)' }} />}
+                sx={{ minHeight: 40, '&.Mui-expanded': { minHeight: 40 }, '& .MuiAccordionSummary-content': { my: 1 } }}>
+                <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: 'rgba(150,200,255,0.8)' }}>
+                  Permisos
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ pt: 0, pb: 1 }}>
+                <Typography sx={{ fontSize: '0.7rem', color: 'rgba(150,200,255,0.5)', mb: 1 }}>
+                  Permisos base para <strong>{formData.rol}</strong>:
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
+                    {Object.entries(getDefaultPermissions(formData.rol)).map(([res, actions]) => (
+                      <Chip key={res} label={`${res}: ${actions.join(', ')}`} size="small"
+                        sx={{ fontSize: '0.6rem', bgcolor: 'rgba(100,180,255,0.08)', color: 'rgba(150,200,255,0.7)' }} />
+                    ))}
+                  </Box>
+                </Typography>
+                <FormControlLabel
+                  control={<Checkbox size="small" checked={customPermisos} onChange={(e) => setCustomPermisos(e.target.checked)} />}
+                  label={<Typography sx={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.7)' }}>Personalizar permisos</Typography>}
+                  sx={{ mb: 1 }}
+                />
+                {customPermisos && (
+                  <Stack spacing={1}>
+                    {Object.entries(RESOURCE_ACTIONS).map(([resource, actions]) => {
+                      const currentPerms = permisosOverrides[resource] || [];
+                      return (
+                        <Box key={resource} sx={{ p: 1, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: 1 }}>
+                          <Typography sx={{ fontSize: '0.72rem', fontWeight: 600, color: 'rgba(150,200,255,0.7)', mb: 0.5, textTransform: 'capitalize' }}>
+                            {resource}
+                          </Typography>
+                          <FormGroup row sx={{ gap: 0.3 }}>
+                            {actions.map((action) => (
+                              <FormControlLabel key={action}
+                                control={
+                                  <Checkbox size="small" checked={currentPerms.includes(action)}
+                                    onChange={() => togglePermiso(resource, action)}
+                                    sx={{ '& .MuiSvgIcon-root': { fontSize: 16 } }} />
+                                }
+                                label={<Typography sx={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.6)' }}>{action}</Typography>}
+                                sx={{ '& .MuiFormControlLabel-label': { ml: 0.3 }, mr: 0.5 }} />
+                            ))}
+                          </FormGroup>
+                        </Box>
+                      );
+                    })}
+                  </Stack>
+                )}
+              </AccordionDetails>
+            </Accordion>
           </Stack>
         </DialogContent>
         <DialogActions>

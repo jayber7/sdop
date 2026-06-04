@@ -43,7 +43,7 @@ router.get('/:id', authMiddleware, adminMiddleware, async (req, res) => {
 
 router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const { nombre, email, password, rol, unidadesAcceso, personaTecnicaId } = req.body;
+    const { nombre, email, password, rol, unidadesAcceso, personaTecnicaId, permisos } = req.body;
 
     if (!nombre || !email || !password) {
       return res.status(400).json({ status: 'error', message: 'Nombre, email y contraseña son requeridos' });
@@ -61,6 +61,7 @@ router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
       rol: rol || 'VISOR',
       unidadesAcceso: unidadesAcceso || [],
       personaTecnicaId: personaTecnicaId || null,
+      permisos: permisos || {},
       activo: true,
     });
 
@@ -77,25 +78,39 @@ router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
 
 router.put('/:id', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const { nombre, rol, unidadesAcceso, personaTecnicaId, password } = req.body;
+    const { nombre, email, rol, unidadesAcceso, personaTecnicaId, password, permisos } = req.body;
 
-    const updateData = { nombre, rol, unidadesAcceso, personaTecnicaId };
-    if (password) {
-      updateData.password = password;
+    const usuario = await Usuario.findById(req.params.id);
+    if (!usuario) return res.status(404).json({ status: 'error', message: 'Usuario no encontrado' });
+
+    if (email !== undefined) {
+      const emailLower = email.toLowerCase();
+      const existente = await Usuario.findOne({ email: emailLower, _id: { $ne: req.params.id } });
+      if (existente) {
+        return res.status(400).json({ status: 'error', message: 'Ya existe otro usuario con ese email' });
+      }
+      usuario.email = emailLower;
     }
 
-    const usuario = await Usuario.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new: true, runValidators: true }
-    )
+    if (nombre !== undefined) usuario.nombre = nombre;
+    if (rol !== undefined) usuario.rol = rol;
+    if (unidadesAcceso !== undefined) usuario.unidadesAcceso = unidadesAcceso;
+    if (personaTecnicaId !== undefined) usuario.personaTecnicaId = personaTecnicaId;
+    if (permisos !== undefined) usuario.permisos = permisos;
+    if (password) usuario.password = password;
+
+    await usuario.save();
+
+    const usuarioActualizado = await Usuario.findById(usuario._id)
       .select('-password')
       .populate('unidadesAcceso', 'nombre codigo color')
       .populate('personaTecnicaId', 'nombreCompleto rol');
 
-    if (!usuario) return res.status(404).json({ status: 'error', message: 'Usuario no encontrado' });
-    res.json({ status: 'success', data: usuario });
+    res.json({ status: 'success', data: usuarioActualizado });
   } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({ status: 'error', message: 'Ya existe un usuario con ese email' });
+    }
     res.status(400).json({ status: 'error', message: error.message });
   }
 });

@@ -11,6 +11,7 @@ import {
 import exifr from 'exifr';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { can } from '../utils/permissions';
 import VerificationReportLayout from '../components/VerificationReportLayout';
 
 const glass = {
@@ -409,7 +410,7 @@ const RegistrarAvance = () => {
   const radioAceptado = verificacionActual?.radioAceptadoMetros || 500;
 
   const t = (val) => typeof val === 'number' && !isNaN(val);
-  const fmtLat = (v) => v != null ? (v >= 0 ? `S ${Math.abs(v).toFixed(6)}°` : `N ${Math.abs(v).toFixed(6)}°`) : '—';
+  const fmtLat = (v) => v != null ? (v >= 0 ? `N ${Math.abs(v).toFixed(6)}°` : `S ${Math.abs(v).toFixed(6)}°`) : '—';
   const fmtLng = (v) => v != null ? (v >= 0 ? `E ${Math.abs(v).toFixed(6)}°` : `O ${Math.abs(v).toFixed(6)}°`) : '—';
 
   const now = new Date();
@@ -756,7 +757,7 @@ const RegistrarAvance = () => {
                       fontFamily: 'monospace',
                       color: estadoVerificacion === 'VERIFICADO' ? '#00dbb4' : '#ffb300',
                     }}>
-                      {distanciaBrowserProyecto != null ? `${distanciaBrowserProyecto}m` : distanciaExifProyecto != null ? `${distanciaExifProyecto}m` : '—'}
+                      {distanciaExifProyecto != null ? `${distanciaExifProyecto}m` : distanciaBrowserProyecto != null ? `${distanciaBrowserProyecto}m` : '—'}
                     </Typography>
                     {!coordExif && coordBrowser && (
                       <Typography sx={{ color: 'rgba(255,200,0,0.4)', fontSize: '0.55rem', fontStyle: 'italic', mt: 0.5 }}>

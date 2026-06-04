@@ -16,7 +16,7 @@ const PERMISSION_MATRIX = {
     personasTecnicas: ['read'],
     hitos: ['read'],
     desembolsos: ['read'],
-    avances: ['read', 'aprobar', 'observar'],
+    avances: ['read', 'create', 'update', 'aprobar', 'observar'],
     unidades: ['read'],
     feedback: ['read', 'create'],
   },
@@ -26,7 +26,7 @@ const PERMISSION_MATRIX = {
     personasTecnicas: ['read'],
     hitos: ['read'],
     desembolsos: ['read'],
-    avances: ['read', 'create', 'update'],
+    avances: ['read', 'create'],
     unidades: ['read'],
     feedback: ['read', 'create'],
   },
@@ -67,6 +67,16 @@ const requirePermission = (resource, action) => (req, res, next) => {
     return res.status(401).json({ status: 'error', message: 'No autorizado' });
   }
 
+  // 1. Check user-level permission overrides
+  const userPermisos = req.usuario.permisos || {};
+  if (userPermisos[resource] !== undefined) {
+    if (userPermisos[resource].includes(action)) {
+      return next();
+    }
+    return res.status(403).json({ status: 'error', message: `Sin permiso para ${action} en ${resource}` });
+  }
+
+  // 2. Fall back to role matrix
   const rol = req.usuario.rol;
   const permissions = PERMISSION_MATRIX[rol];
 
@@ -85,6 +95,15 @@ const requirePermission = (resource, action) => (req, res, next) => {
 const canAccessResource = (resource, action) => (req, res, next) => {
   if (!req.usuario) {
     return res.status(401).json({ status: 'error', message: 'No autorizado' });
+  }
+
+  // Check user-level override first
+  const userPermisos = req.usuario.permisos || {};
+  if (userPermisos[resource] !== undefined) {
+    if (!userPermisos[resource].includes(action)) {
+      return res.status(403).json({ status: 'error', message: `Sin permiso para ${action} en ${resource}` });
+    }
+    return next();
   }
 
   if (req.usuario.rol === 'ADMIN') {

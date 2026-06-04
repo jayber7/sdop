@@ -8,10 +8,11 @@ import {
   Engineering as ProjectsIcon, Assignment as AvancesIcon,
   Business as EmpresasIcon, People as PersonasIcon,
   AccountBalance as HitosIcon, Feedback as FeedbackIcon,
-  Logout as LogoutIcon,
+  Logout as LogoutIcon, AdminPanelSettings, Group, Domain,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { can } from '../utils/permissions';
 import UNITS_CONFIG from '../config/unitMenus';
 
 const UnitSidebar = ({ unidades, selectedUnidad, setSelectedUnidad, onLogout }) => {
@@ -21,7 +22,7 @@ const UnitSidebar = ({ unidades, selectedUnidad, setSelectedUnidad, onLogout }) 
   const [expandedUnits, setExpandedUnits] = useState({});
 
   const userUnitIds = user?.unidadesAcceso?.map((u) => (typeof u === 'string' ? u : u._id)) || [];
-  const isAdmin = user?.rol === 'ADMIN';
+  const isAdmin = can(user, 'usuarios', 'read');
 
   const filteredUnits = isAdmin
     ? UNITS_CONFIG
@@ -57,6 +58,8 @@ const UnitSidebar = ({ unidades, selectedUnidad, setSelectedUnidad, onLogout }) 
     adminItems.push({ text: 'Empresas', icon: <EmpresasIcon />, path: '/empresas' });
     adminItems.push({ text: 'Personas Técnicas', icon: <PersonasIcon />, path: '/personas-tecnicas' });
     adminItems.push({ text: 'Hitos Presupuestarios', icon: <HitosIcon />, path: '/hitos' });
+    adminItems.push({ text: 'Usuarios', icon: <Group />, path: '/usuarios' });
+    adminItems.push({ text: 'Unidades', icon: <Domain />, path: '/unidades' });
   }
 
   return (
@@ -156,7 +159,13 @@ const UnitSidebar = ({ unidades, selectedUnidad, setSelectedUnidad, onLogout }) 
 
       {adminItems.length > 0 && (
         <>
-          <List dense sx={{ pt: 0.5 }}>
+          <Box sx={{ px: 2.5, pt: 1.5, pb: 0.5, display: 'flex', alignItems: 'center', gap: 0.8 }}>
+            <AdminPanelSettings sx={{ fontSize: 14, color: 'rgba(150,200,255,0.4)' }} />
+            <Typography sx={{ fontSize: '0.65rem', color: 'rgba(150,200,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
+              Administración
+            </Typography>
+          </Box>
+          <List dense sx={{ pt: 0 }}>
             {adminItems.map((item) => (
               <ListItem key={item.text} button onClick={() => navigate(item.path)} sx={menuItemStyle(item.path)}>
                 <ListItemIcon sx={{ color: 'inherit', minWidth: 36 }}>{item.icon}</ListItemIcon>

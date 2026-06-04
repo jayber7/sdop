@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import {
   Box, Typography, Dialog, IconButton, LinearProgress, Alert, Card, CardContent, Grid, Chip,
+  Button, DialogTitle, DialogContent, DialogActions, TextField,
 } from '@mui/material';
-import { Close, GpsFixed, LocationOn, AccessTime, CameraAlt, Smartphone, CheckCircle, Warning } from '@mui/icons-material';
+import { Close, GpsFixed, LocationOn, AccessTime, CameraAlt, Smartphone, CheckCircle, Warning, Cancel } from '@mui/icons-material';
 import api from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+import { can } from '../utils/permissions';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -35,10 +38,16 @@ const redIcon = new L.Icon({
   iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
 });
 
-export default function AvanceDetailModal({ avanceId, onClose }) {
+export default function AvanceDetailModal({ avanceId, onClose, onUpdate }) {
   const [avance, setAvance] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [accion, setAccion] = useState('');
+  const [observaciones, setObservaciones] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState('');
+  const { user } = useAuth();
 
   useEffect(() => {
     if (!avanceId) return;
@@ -48,6 +57,32 @@ export default function AvanceDetailModal({ avanceId, onClose }) {
       .catch((err) => setError(err.response?.data?.message || 'Error al cargar avance'))
       .finally(() => setLoading(false));
   }, [avanceId]);
+
+  const canManage = can(user, 'avances', 'aprobar');
+
+  const handleAprobarObservar = async () => {
+    setSubmitting(true);
+    try {
+      const endpoint = accion === 'APROBAR' ? 'aprobar' : 'observar';
+      await api.put(`/avances/${avanceId}/${endpoint}`, { observaciones });
+      setSuccess(`Avance ${accion.toLowerCase()} correctamente`);
+      setDialogOpen(false);
+      onUpdate?.();
+      const res = await api.get(`/avances/${avanceId}`);
+      setAvance(res.data.data);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Error al procesar');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const openDialog = (tipo) => {
+    setAccion(tipo);
+    setObservaciones('');
+    setDialogOpen(true);
+    setError(null);
+  };
 
   const coordProyecto = avance?.proyectoId?.coordenadas?.lat && avance?.proyectoId?.coordenadas?.lng
     ? { lat: avance.proyectoId.coordenadas.lat, lng: avance.proyectoId.coordenadas.lng }
@@ -262,6 +297,50 @@ export default function AvanceDetailModal({ avanceId, onClose }) {
                 </Grid>
               </Card>
             )}
+
+            {success && <Alert severity="success" sx={{ mt: 2, bgcolor: 'rgba(0,200,150,0.1)', color: 'rgba(0,220,180,0.9)' }}>{success}</Alert>}
+
+            {canManage && avance.estado === 'ENVIADO' && (
+              <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
+                <Button fullWidth variant="contained" startIcon={<CheckCircle />}
+                  sx={{ bgcolor: 'rgba(0,200,150,0.3)', color: 'rgba(0,220,180,0.95)', border: '1px solid rgba(0,220,180,0.3)', '&:hover': { bgcolor: 'rgba(0,200,150,0.5)' } }}
+                  onClick={() => openDialog('APROBAR')}>
+                  Aprobar Avance
+                </Button>
+                <Button fullWidth variant="contained" startIcon={<Cancel />}
+                  sx={{ bgcolor: 'rgba(255,80,80,0.3)', color: 'rgba(255,120,120,0.95)', border: '1px solid rgba(255,80,80,0.3)', '&:hover': { bgcolor: 'rgba(255,80,80,0.5)' } }}
+                  onClick={() => openDialog('OBSERVAR')}>
+                  Observar Avance
+                </Button>
+              </Box>
+            )}
+
+            {/* Approve/Observe Dialog */}
+            <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth
+              PaperProps={{
+                sx: { bgcolor: 'rgba(10,14,39,0.95)', backdropFilter: 'blur(24px)', border: '1px solid rgba(100,180,255,0.12)', borderRadius: 3, boxShadow: '0 8px 60px rgba(0,0,0,0.7)' },
+              }}>
+              <DialogTitle sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 700, fontSize: '1rem' }}>
+                {accion === 'APROBAR' ? 'Aprobar Avance' : 'Observar Avance'}
+              </DialogTitle>
+              <DialogContent>
+                <TextField fullWidth multiline rows={3} label="Observaciones"
+                  value={observaciones}
+                  onChange={(e) => setObservaciones(e.target.value)}
+                  placeholder={accion === 'APROBAR' ? 'Comentario opcional...' : 'Describe las observaciones...'}
+                  sx={{ mt: 1, '& .MuiInputBase-root': { bgcolor: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.85)', borderRadius: 1.5, '& fieldset': { border: '1px solid rgba(255,255,255,0.1)' } }, '& .MuiInputLabel-root': { color: 'rgba(150,200,255,0.5)', fontSize: '0.8rem' } }} />
+                {error && <Alert severity="error" sx={{ mt: 2, bgcolor: 'rgba(255,50,50,0.1)', color: 'rgba(255,100,100,0.9)' }}>{error}</Alert>}
+              </DialogContent>
+              <DialogActions sx={{ px: 3, pb: 2 }}>
+                <Button onClick={() => setDialogOpen(false)} sx={{ color: 'rgba(255,255,255,0.5)', '&:hover': { color: 'rgba(255,255,255,0.8)' } }}>
+                  Cancelar
+                </Button>
+                <Button variant="contained" onClick={handleAprobarObservar} disabled={submitting}
+                  sx={{ bgcolor: accion === 'APROBAR' ? 'rgba(0,200,150,0.3)' : 'rgba(255,80,80,0.3)', color: accion === 'APROBAR' ? 'rgba(0,220,180,0.95)' : 'rgba(255,120,120,0.95)', border: `1px solid ${accion === 'APROBAR' ? 'rgba(0,220,180,0.3)' : 'rgba(255,80,80,0.3)'}`, '&:hover': { bgcolor: accion === 'APROBAR' ? 'rgba(0,200,150,0.5)' : 'rgba(255,80,80,0.5)' } }}>
+                  {submitting ? 'Procesando...' : accion === 'APROBAR' ? 'Aprobar' : 'Observar'}
+                </Button>
+              </DialogActions>
+            </Dialog>
           </Box>
         ) : null}
       </Box>

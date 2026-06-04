@@ -306,8 +306,8 @@ Base URL: `http://localhost:5001/api`
 | Rol | Proyectos | Empresas | Personas | Hitos | Desembolsos | Avances | Usuarios | Unidades |
 |-----|-----------|----------|----------|-------|-------------|---------|----------|----------|
 | **ADMIN** | CRUD | CRUD | CRUD | CRUD | CRUD | CRUD | CRUD | CRUD |
-| **SUPERVISOR** | R | R | R | R | R | R, Aprobar, Observar | - | R |
-| **INSPECTOR** | R | R | R | R | R | R, C, U | - | R |
+| **SUPERVISOR** | R | R | R | R | R | R, C, U, Aprobar, Observar | - | R |
+| **INSPECTOR** | R | R | R | R | R | R, C | - | R |
 | **FISCAL** | R | R | R | R | R | R | - | R |
 | **VISOR** | R | R | R | R | R | R | - | R |
 
@@ -522,3 +522,5 @@ npm run preview      # Preview del build
 16. **Admin edita avances en cualquier estado**: El backend permite que ADMIN modifique avances sin importar su estado (BORRADOR/ENVIADO/APROBADO/OBSERVADO). Otros roles solo editan ENVIADO. En el frontend, ADMIN ve un campo `estado` en el formulario de edición para cambiar el estado directamente.
 
 17. **Árbol de avances por proyecto**: La página `/avances` agrupa los reportes en acordeones por proyecto con chips de estado. La búsqueda por texto filtra por nombre de proyecto o código de reporte (AV-XXXX). Los acordeones se expanden/colapsan individualmente y preservan su estado via `?expand=proyectoId` al regresar desde el detalle.
+
+18. **Sistema centralizado de permisos frontend**: Matriz en `src/utils/permissions.js` que replica el backend. Todos los componentes usan `can(user, resource, action)` en lugar de comparar `user?.rol` directamente. Define qué roles pueden hacer qué acción en cada recurso (proyectos, avances, usuarios, unidades, etc.).

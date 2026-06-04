@@ -12,6 +12,7 @@ import {
 import exifr from 'exifr';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { can } from '../utils/permissions';
 import VerificationReportLayout from '../components/VerificationReportLayout';
 
 const ESTADO_COLORS = {
@@ -256,8 +257,8 @@ const AvanceDetalle = () => {
     });
   };
 
-  const canManage = user?.rol === 'ADMIN' || user?.rol === 'SUPERVISOR';
-  const canAddEvidence = (user?.rol === 'ADMIN' || user?.rol === 'INSPECTOR') && avance?.estado !== 'APROBADO';
+  const canManage = can(user, 'avances', 'aprobar');
+  const canAddEvidence = can(user, 'avances', 'update') && avance?.estado !== 'APROBADO';
 
   if (loading) return <Box sx={{ p: 3 }}><LinearProgress /></Box>;
   if (!avance) return <Box sx={{ p: 3 }}><Alert severity="error">Avance no encontrado</Alert></Box>;

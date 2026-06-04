@@ -13,6 +13,7 @@ const usuarioSchema = new mongoose.Schema({
   },
   personaTecnicaId: { type: mongoose.Schema.Types.ObjectId, ref: 'PersonaTecnica' },
   unidadesAcceso: [{ type: mongoose.Schema.Types.ObjectId, ref: 'UnidadOrganizativa' }],
+  permisos: { type: mongoose.Schema.Types.Mixed, default: {} },
   activo: { type: Boolean, default: true },
   ultimoAcceso: Date,
   intentosFallidos: { type: Number, default: 0 },
